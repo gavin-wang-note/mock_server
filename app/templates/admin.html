@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Server 管理界面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        nav {
+            background-color: #444;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 15px;
+        }
+        
+        nav ul li a {
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        
+        nav ul li a:hover {
+            background-color: #555;
+        }
+        
+        nav ul li a.active {
+            background-color: #007bff;
+            color: #fff;
+        }
+        
+        .section {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0069d9;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #fff;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 5px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .close:hover, .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-enabled {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-disabled {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .filter-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-form input, .filter-form select {
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .request-detail {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+        }
+        
+        .request-detail pre {
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .filter-form {
+                flex-direction: column;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            th, td {
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mock Server 管理界面</h1>
+            <p>企业级Python Mock Server - 版本 1.0.0</p>
+        </header>
+        
+        <nav>
+            <ul>
+                <li><a href="#routes">路由管理</a></li>
+                <li><a href="#requests">请求历史</a></li>
+                <li><a href="#config">服务配置</a></li>
+                <li><a href="#status">服务状态</a></li>
+            </ul>
+        </nav>
+        
+        <!-- 路由管理 -->
+        <div class="section" id="routes">
+            <h2>路由管理</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
+                <div>
+                    <input type="text" id="route-search" placeholder="搜索路由..." style="padding: 8px; width: 200px;">
+                    <button class="btn btn-secondary" onclick="searchRoutes()">搜索</button>
+                </div>
+            </div>
+            
+            <table id="routes-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>路径</th>
+                        <th>方法</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for route in routes %}
+                    <tr>
+                        <td>{{ route.id[:8] }}...</td>
+                        <td>{{ route.name }}</td>
+                        <td>{{ route.match_rule.path }}</td>
+                        <td>{{ route.match_rule.methods | join(', ') }}</td>
+                        <td>
+                            <span class="status-badge {{ 'status-enabled' if route.enabled else 'status-disabled' }}">
+                                {{ '启用' if route.enabled else '禁用' }}
+                            </span>
+                        </td>
+                        <td>{{ route.created_at | int | timestamp }}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="editRoute('{{ route.id }}')">编辑</button>
+                            <button class="btn btn-danger" onclick="deleteRoute('{{ route.id }}')">删除</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- 路由管理分页控件 -->
+            <div class="pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button class="btn btn-secondary" onclick="changePage('routes', 'prev')" disabled>上一页</button>
+                    <button class="btn btn-secondary" onclick="changePage('routes', 'next')" disabled>下一页</button>
+                    <span style="margin: 0 10px;">第 <span id="routes-current-page">1</span> 页，共 <span id="routes-total-pages">1</span> 页</span>
+                </div>
+                <div>
+                    <label for="routes-page-size">每页显示：</label>
+                    <select id="routes-page-size" onchange="changePageSize('routes', this.value)">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 请求历史 -->
+        <div class="section" id="requests">
+            <h2>请求历史</h2>
+            <div class="filter-form">
+                <select id="request-method" placeholder="方法">
+                    <option value="">所有方法</option>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+                <input type="text" id="request-path" placeholder="路径包含">
+                <input type="number" id="request-status" placeholder="状态码">
+                <button class="btn btn-primary" onclick="filterRequests()">过滤</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">清空</button>
+                <button class="btn btn-danger" onclick="clearRequests()">清空历史</button>
+            </div>
+            
+            <table id="requests-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>方法</th>
+                        <th>路径</th>
+                        <th>状态码</th>
+                        <th>响应时间</th>
+                        <th>客户端IP</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td>{{ req.timestamp | int | timestamp }}</td>
+                        <td>{{ req.method }}</td>
+                        <td>{{ req.path }}</td>
+                        <td>{{ req.response_status }}</td>
+                        <td>{{ "{:.3f}".format(req.response_time) }}s</td>
+                        <td>{{ req.client_ip }}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="viewRequest('{{ req.id }}')">查看</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- 请求历史分页控件 -->
+            <div class="pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button class="btn btn-secondary" onclick="changePage('requests', 'prev')" disabled>上一页</button>
+                    <button class="btn btn-secondary" onclick="changePage('requests', 'next')" disabled>下一页</button>
+                    <span style="margin: 0 10px;">第 <span id="requests-current-page">1</span> 页，共 <span id="requests-total-pages">1</span> 页</span>
+                </div>
+                <div>
+                    <label for="requests-page-size">每页显示：</label>
+                    <select id="requests-page-size" onchange="changePageSize('requests', this.value)">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 服务配置 -->
+        <div class="section" id="config">
+            <h2>服务配置</h2>
+            <form id="config-form">
+                <div class="form-group">
+                    <label>服务器地址</label>
+                    <input type="text" id="server-host" value="{{ config.server.host }}">
+                </div>
+                <div class="form-group">
+                    <label>服务器端口</label>
+                    <input type="number" id="server-port" value="{{ config.server.port }}">
+                </div>
+                <div class="form-group">
+                    <label>启用HTTPS</label>
+                    <input type="checkbox" id="enable-https" {% if config.server.enable_https %}checked{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>启用代理模式</label>
+                    <input type="checkbox" id="enable-proxy" {% if config.proxy.enable %}checked{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>代理目标URL</label>
+                    <input type="text" id="proxy-target" value="{{ config.proxy.target_url or '' }}">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+            </form>
+        </div>
+        
+        <!-- 服务状态 -->
+        <div class="section" id="status">
+            <h2>服务状态</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="request-detail">
+                    <h3>运行时间</h3>
+                    <p id="uptime">计算中...</p>
+                </div>
+                <div class="request-detail">
+                    <h3>总请求数</h3>
+                    <p id="total-requests">{{ requests | length }}</p>
+                </div>
+                <div class="request-detail">
+                    <h3>活跃路由</h3>
+                    <p id="active-routes">{{ routes | selectattr('enabled', 'equalto', true) | list | length }}</p>
+                </div>
+                <div class="request-detail">
+                    <h3>服务状态</h3>
+                    <p id="service-status" class="status-badge status-enabled">运行中</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 创建路由模态框 -->
+    <div id="create-route-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateRouteModal()">&times;</span>
+            <h2>创建新路由</h2>
+            <form id="create-route-form">
+                <div class="form-group">
+                    <label>路由名称</label>
+                    <input type="text" id="route-name" required>
+                </div>
+                <div class="form-group">
+                    <label>路径</label>
+                    <input type="text" id="route-path" placeholder="例如: /api/users/{id}" required>
+                </div>
+                <div class="form-group">
+                    <label>HTTP方法</label>
+                    <input type="text" id="route-methods" placeholder="例如: GET,POST" required>
+                </div>
+                <div class="form-group">
+                    <label>状态码</label>
+                    <input type="number" id="route-status" value="200" required>
+                </div>
+                <div class="form-group">
+                    <label>响应内容</label>
+                    <textarea id="route-content" placeholder='例如: {"id": "1", "name": "User"}' required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>响应延迟 (秒)</label>
+                    <input type="number" id="route-delay" value="0" step="0.1">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitCreateRoute()">创建</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCreateRouteModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 请求详情模态框 -->
+    <div id="request-detail-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRequestDetailModal()">&times;</span>
+            <h2>请求详情</h2>
+            <div id="request-detail-content"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 时间戳转换为日期时间
+        function timestampToDateTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // 格式化时间戳
+        document.addEventListener('DOMContentLoaded', function() {
+            // 计算运行时间
+            updateUptime();
+            setInterval(updateUptime, 1000);
+            
+            // 搜索路由
+            document.getElementById('route-search').addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    searchRoutes();
+                }
+            });
+        });
+        
+        function updateUptime() {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    const uptime = data.uptime;
+                    const hours = Math.floor(uptime / 3600);
+                    const minutes = Math.floor((uptime % 3600) / 60);
+                    const seconds = Math.floor(uptime % 60);
+                    document.getElementById('uptime').textContent = `${hours}h ${minutes}m ${seconds}s`;
+                });
+        }
+        
+        // 路由管理
+        function openCreateRouteModal() {
+            document.getElementById('create-route-modal').style.display = 'block';
+        }
+        
+        function closeCreateRouteModal() {
+            document.getElementById('create-route-modal').style.display = 'none';
+            document.getElementById('create-route-form').reset();
+        }
+        
+        function submitCreateRoute() {
+            const name = document.getElementById('route-name').value;
+            const path = document.getElementById('route-path').value;
+            const methods = document.getElementById('route-methods').value.split(',').map(m => m.trim());
+            const status = parseInt(document.getElementById('route-status').value);
+            const content = document.getElementById('route-content').value;
+            const delay = parseFloat(document.getElementById('route-delay').value);
+            
+            const routeData = {
+                name: name,
+                match_rule: {
+                    path: path,
+                    methods: methods
+                },
+                response: {
+                    status_code: status,
+                    content: JSON.parse(content),
+                    delay: delay
+                }
+            };
+            
+            fetch('/admin/routes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: JSON.stringify(routeData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('路由创建成功！');
+                closeCreateRouteModal();
+                location.reload();
+            })
+            .catch(error => {
+                alert('路由创建失败：' + error.message);
+            });
+        }
+        
+        function editRoute(routeId) {
+            alert('编辑路由功能开发中...');
+        }
+        
+        function deleteRoute(routeId) {
+            if (confirm('确定要删除此路由吗？')) {
+                fetch(`/admin/routes/${routeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer mock_server_admin_token'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('路由删除成功！');
+                    location.reload();
+                })
+                .catch(error => {
+                    alert('路由删除失败：' + error.message);
+                });
+            }
+        }
+        
+        function searchRoutes() {
+            const searchTerm = document.getElementById('route-search').value.toLowerCase();
+            const rows = document.querySelectorAll('#routes-table tbody tr');
+            
+            rows.forEach(row => {
+                const name = row.cells[1].textContent.toLowerCase();
+                const path = row.cells[2].textContent.toLowerCase();
+                const methods = row.cells[3].textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || path.includes(searchTerm) || methods.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // 请求历史管理
+        function filterRequests() {
+            // 重置到第一页
+            paginationState.requests.currentPage = 1;
+            
+            // 重新获取数据（会自动应用过滤条件）
+            fetchPaginatedData('requests');
+        }
+        
+        function clearFilters() {
+            document.getElementById('request-method').value = '';
+            document.getElementById('request-path').value = '';
+            document.getElementById('request-status').value = '';
+            
+            // 重置到第一页
+            paginationState.requests.currentPage = 1;
+            
+            // 重新获取数据
+            fetchPaginatedData('requests');
+        }
+        
+        function clearRequests() {
+            if (confirm('确定要清空所有请求历史吗？')) {
+                fetch('/admin/requests', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer mock_server_admin_token'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('请求历史清空成功！');
+                    location.reload();
+                })
+                .catch(error => {
+                    alert('请求历史清空失败：' + error.message);
+                });
+            }
+        }
+        
+        function viewRequest(requestId) {
+            fetch(`/admin/requests/${requestId}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const modal = document.getElementById('request-detail-modal');
+                const content = document.getElementById('request-detail-content');
+                
+                content.innerHTML = `
+                    <div class="request-detail">
+                        <h3>请求信息</h3>
+                        <p><strong>时间：</strong>${timestampToDateTime(data.request.timestamp)}</p>
+                        <p><strong>方法：</strong>${data.request.method}</p>
+                        <p><strong>路径：</strong>${data.request.path}</p>
+                        <p><strong>状态码：</strong>${data.request.response_status}</p>
+                        <p><strong>响应时间：</strong>${data.request.response_time}s</p>
+                        <p><strong>客户端IP：</strong>${data.request.client_ip}</p>
+                        <p><strong>查询参数：</strong></p>
+                        <pre>${JSON.stringify(data.request.query_params, null, 2)}</pre>
+                        <p><strong>请求体：</strong></p>
+                        <pre>${JSON.stringify(data.request.body, null, 2)}</pre>
+                    </div>
+                    <div class="request-detail" style="margin-top: 10px;">
+                        <h3>响应信息</h3>
+                        <p><strong>状态码：</strong>${data.response.status_code}</p>
+                        <p><strong>响应时间：</strong>${data.response.response_time}s</p>
+                        <p><strong>内容类型：</strong>${data.response.content_type}</p>
+                        <p><strong>响应内容：</strong></p>
+                        <pre>${JSON.stringify(data.response.content, null, 2)}</pre>
+                    </div>
+                `;
+                
+                modal.style.display = 'block';
+            })
+            .catch(error => {
+                alert('获取请求详情失败：' + error.message);
+            });
+        }
+        
+        function closeRequestDetailModal() {
+            document.getElementById('request-detail-modal').style.display = 'none';
+        }
+        
+        // 服务配置管理
+        function saveConfig() {
+            const configData = {
+                server: {
+                    host: document.getElementById('server-host').value,
+                    port: parseInt(document.getElementById('server-port').value),
+                    enable_https: document.getElementById('enable-https').checked
+                },
+                proxy: {
+                    enable: document.getElementById('enable-proxy').checked,
+                    target_url: document.getElementById('proxy-target').value
+                }
+            };
+            
+            fetch('/admin/config', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: JSON.stringify(configData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('配置保存成功！');
+            })
+            .catch(error => {
+                alert('配置保存失败：' + error.message);
+            });
+        }
+        
+        // 关闭模态框
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let i = 0; i < modals.length; i++) {
+                const modal = modals[i];
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+        
+        // 标签页切换功能
+        function showTab(tabId) {
+            // 隐藏所有标签页
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 移除所有导航链接的active类
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 显示目标标签页
+            document.querySelector(tabId).classList.add('active');
+            
+            // 激活对应的导航链接
+            document.querySelector(`nav a[href="${tabId}"]`).classList.add('active');
+        }
+        
+        // 分页状态管理
+        const paginationState = {
+            routes: {
+                currentPage: 1,
+                pageSize: 10,
+                totalItems: 0,
+                totalPages: 1
+            },
+            requests: {
+                currentPage: 1,
+                pageSize: 10,
+                totalItems: 0,
+                totalPages: 1
+            }
+        };
+        
+        // 页码切换函数
+        function changePage(type, direction) {
+            const state = paginationState[type];
+            
+            if (direction === 'prev' && state.currentPage > 1) {
+                state.currentPage--;
+            } else if (direction === 'next' && state.currentPage < state.totalPages) {
+                state.currentPage++;
+            }
+            
+            fetchPaginatedData(type);
+            updatePaginationUI(type);
+        }
+        
+        // 每页数量变更函数
+        function changePageSize(type, size) {
+            const state = paginationState[type];
+            state.pageSize = parseInt(size);
+            state.currentPage = 1; // 重置到第一页
+            
+            fetchPaginatedData(type);
+            updatePaginationUI(type);
+        }
+        
+        // 更新分页UI
+        function updatePaginationUI(type) {
+            const state = paginationState[type];
+            
+            // 更新页码显示
+            document.getElementById(`${type}-current-page`).textContent = state.currentPage;
+            document.getElementById(`${type}-total-pages`).textContent = state.totalPages;
+            
+            // 更新按钮状态
+            const prevBtn = document.querySelector(`#${type} .pagination button:first-child`);
+            const nextBtn = document.querySelector(`#${type} .pagination button:nth-child(2)`);
+            
+            if (prevBtn) prevBtn.disabled = state.currentPage === 1;
+            if (nextBtn) nextBtn.disabled = state.currentPage === state.totalPages;
+        }
+        
+        // 获取分页数据
+        function fetchPaginatedData(type) {
+            const state = paginationState[type];
+            const offset = (state.currentPage - 1) * state.pageSize;
+            
+            // 构建请求URL
+            let url = `/admin/${type}?limit=${state.pageSize}&offset=${offset}`;
+            
+            // 如果是请求历史，添加过滤参数
+            if (type === 'requests') {
+                const method = document.getElementById('request-method').value;
+                const path = document.getElementById('request-path').value;
+                const status = document.getElementById('request-status').value;
+                
+                if (method) url += `&method=${method}`;
+                if (path) url += `&path=${path}`;
+                if (status) url += `&status_code=${status}`;
+            }
+            
+            // 发送AJAX请求
+            fetch(url, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 更新表格数据
+                updateTable(type, data);
+                
+                // 模拟更新总页数（实际应该从后端获取）
+                // 这里暂时使用前端计算，后续可以修改为后端返回总页数
+                if (type === 'routes') {
+                    // 由于后端没有返回总页数，这里暂时使用一个估算值
+                    // 实际应用中应该修改后端API返回总页数
+                    state.totalPages = Math.ceil(50 / state.pageSize); // 假设最多50条路由
+                } else if (type === 'requests') {
+                    state.totalPages = Math.ceil(100 / state.pageSize); // 假设最多100条请求
+                }
+                
+                updatePaginationUI(type);
+            })
+            .catch(error => {
+                console.error('获取数据失败:', error);
+                alert('获取数据失败，请重试');
+            });
+        }
+        
+        // 更新表格数据
+        function updateTable(type, data) {
+            const tableId = type === 'routes' ? 'routes-table' : 'requests-table';
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            
+            if (!tbody) return;
+            
+            // 清空表格
+            tbody.innerHTML = '';
+            
+            // 填充新数据
+            if (type === 'routes') {
+                data.forEach(route => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${route.id.substring(0, 8)}...</td>
+                        <td>${route.name}</td>
+                        <td>${route.match_rule.path}</td>
+                        <td>${route.match_rule.methods.join(', ')}</td>
+                        <td>
+                            <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
+                                ${route.enabled ? '启用' : '禁用'}
+                            </span>
+                        </td>
+                        <td>${timestampToDateTime(route.created_at)}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                            <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else if (type === 'requests') {
+                data.forEach(req => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${timestampToDateTime(req.timestamp)}</td>
+                        <td>${req.method}</td>
+                        <td>${req.path}</td>
+                        <td>${req.response_status}</td>
+                        <td>${req.response_time.toFixed(3)}s</td>
+                        <td>${req.client_ip}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="viewRequest('${req.id}')">查看</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+        
+        // 初始化标签页
+        document.addEventListener('DOMContentLoaded', function() {
+            // 默认显示第一个标签页
+            showTab('#routes');
+            
+            // 添加导航点击事件
+            document.querySelectorAll('nav a').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    showTab(targetId);
+                });
+            });
+            
+            // 初始化分页状态
+            fetchPaginatedData('routes');
+            updatePaginationUI('routes');
+            fetchPaginatedData('requests');
+            updatePaginationUI('requests');
+        });
+    </script>
+</body>
+</html>
