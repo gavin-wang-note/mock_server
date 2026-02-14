@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from typing import List, Optional
 import time
 import uuid
+import os
 from app.models.route import Route, RouteCreate, RouteUpdate
 from app.models.request import Request as RequestModel, RequestFilter
 from app.api.mock import add_route, remove_route, update_route, get_all_routes, get_request_history, get_response_history
@@ -108,19 +109,9 @@ async def login(username: str, password: str):
 
 # 路由管理
 @router.get("/routes", response_model=List[Route])
-async def get_routes(
-    limit: int = 20,
-    offset: int = 0,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_routes(current_user: dict = Depends(get_current_user)):
     """获取所有路由"""
-    routes = get_all_routes()
-    
-    # 应用分页
-    total = len(routes)
-    routes = routes[offset:offset + limit]
-    
-    return routes
+    return get_all_routes()
 
 
 @router.post("/routes", response_model=Route)
@@ -239,30 +230,35 @@ async def get_requests(
 @router.get("/requests/{request_id}")
 async def get_request(request_id: str, current_user: dict = Depends(get_current_user)):
     """获取指定请求"""
-    requests = get_request_history()
-    for req in requests:
-        if req.id == request_id:
-            # 获取对应的响应
-            responses = get_response_history()
-            response = None
-            for resp in responses:
-                if resp.request_id == request_id:
-                    response = resp
-                    break
-            
-            return {
-                "request": req,
-                "response": response
-            }
+    from app.storage.database import db_storage
     
-    raise HTTPException(status_code=404, detail="请求不存在")
+    # 从数据库中获取请求记录
+    req = db_storage.get_request_by_id(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="请求不存在")
+    
+    # 从数据库中获取对应的响应记录
+    response = db_storage.get_response_by_request_id(request_id)
+    
+    return {
+        "request": req,
+        "response": response
+    }
 
 
 @router.delete("/requests")
 async def clear_requests(current_user: dict = Depends(get_current_user)):
     """清空请求历史"""
-    # 这里简化处理，实际应该清空请求和响应历史
-    # 暂时返回成功消息
+    from app.api.mock import request_history, response_history
+    from app.storage.database import db_storage
+    
+    # 清空内存中的历史记录
+    request_history.clear()
+    response_history.clear()
+    
+    # 清空数据库中的历史记录
+    db_storage.clear_requests()
+    
     return {"message": "请求历史清空成功"}
 
 
@@ -282,9 +278,72 @@ async def get_config(current_user: dict = Depends(get_current_user)):
 @router.put("/config")
 async def update_config(config_update: dict, current_user: dict = Depends(get_current_user)):
     """更新服务配置"""
-    # 这里简化处理，实际应该更新配置并重启相关服务
-    # 暂时返回成功消息
+    from app.services.config_manager import config_manager
+    
+    # 保存配置更新
+    config_manager.save_config(config_update)
+    
     return {"message": "配置更新成功", "config": config_update}
+
+
+@router.post("/config/backup")
+async def backup_config(env: str = 'default', backup_name: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """备份配置"""
+    from app.services.config_manager import config_manager
+    
+    backup_file = config_manager.backup_config(env, backup_name)
+    return {"message": "配置备份成功", "backup_file": backup_file}
+
+
+@router.post("/config/restore")
+async def restore_config(backup_file: str, env: str = 'default', current_user: dict = Depends(get_current_user)):
+    """从备份恢复配置"""
+    from app.services.config_manager import config_manager
+    
+    success = config_manager.restore_config(backup_file, env)
+    if success:
+        return {"message": "配置恢复成功"}
+    else:
+        raise HTTPException(status_code=400, detail="配置恢复失败")
+
+
+@router.get("/config/backups")
+async def get_backups(current_user: dict = Depends(get_current_user)):
+    """获取所有备份"""
+    from app.services.config_manager import config_manager
+    
+    backups = config_manager.get_all_backups()
+    return backups
+
+
+@router.get("/config/history")
+async def get_config_history(env: str = 'default', limit: int = 10, current_user: dict = Depends(get_current_user)):
+    """获取配置变更历史"""
+    from app.services.config_manager import config_manager
+    
+    history = config_manager.get_config_history(env, limit)
+    return history
+
+
+@router.post("/config/switch")
+async def switch_env(env: str, current_user: dict = Depends(get_current_user)):
+    """切换环境"""
+    from app.services.config_manager import config_manager
+    
+    success = config_manager.switch_env(env)
+    if success:
+        return {"message": "环境切换成功", "env": env}
+    else:
+        raise HTTPException(status_code=400, detail="环境切换失败")
+
+
+@router.get("/config/envs")
+async def get_envs(current_user: dict = Depends(get_current_user)):
+    """获取所有环境"""
+    from app.services.config_manager import config_manager
+    
+    envs = ['default', 'development', 'testing', 'production']
+    return {"envs": envs, "current_env": config_manager.get_current_env()}
 
 
 # 管理界面
@@ -300,3 +359,138 @@ async def admin_ui(request: Request):
             "config": config
         }
     )
+
+
+# 数据管理
+@router.post("/data/cleanup")
+async def cleanup_data(
+    max_age_days: Optional[int] = None,
+    max_records: Optional[int] = None,
+    archive: Optional[bool] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """清理数据"""
+    from app.services.data_manager import data_manager
+    
+    result = data_manager.cleanup_requests(max_age_days, max_records, archive)
+    return {"message": "数据清理完成", "result": result}
+
+
+@router.get("/data/archives")
+async def get_archives(current_user: dict = Depends(get_current_user)):
+    """获取所有归档"""
+    from app.services.data_manager import data_manager
+    
+    archives = data_manager.get_archives()
+    return archives
+
+
+@router.post("/data/restore")
+async def restore_archive(archive_file: str, current_user: dict = Depends(get_current_user)):
+    """从归档恢复数据"""
+    from app.services.data_manager import data_manager
+    
+    success = data_manager.restore_archive(archive_file)
+    if success:
+        return {"message": "归档恢复成功"}
+    else:
+        raise HTTPException(status_code=400, detail="归档恢复失败")
+
+
+@router.delete("/data/archives/{archive_file}")
+async def delete_archive(archive_file: str, current_user: dict = Depends(get_current_user)):
+    """删除归档"""
+    from app.services.data_manager import data_manager
+    
+    # 构建完整路径
+    full_path = os.path.join(os.path.dirname(config.storage.db_path), 'archives', archive_file)
+    success = data_manager.delete_archive(full_path)
+    if success:
+        return {"message": "归档删除成功"}
+    else:
+        raise HTTPException(status_code=400, detail="归档删除失败")
+
+
+@router.get("/data/cleanup/strategy")
+async def get_cleanup_strategy(current_user: dict = Depends(get_current_user)):
+    """获取清理策略"""
+    from app.services.data_manager import data_manager
+    
+    strategy = data_manager.get_cleanup_strategy()
+    return strategy
+
+
+@router.put("/data/cleanup/strategy")
+async def set_cleanup_strategy(strategy: dict, current_user: dict = Depends(get_current_user)):
+    """设置清理策略"""
+    from app.services.data_manager import data_manager
+    
+    success = data_manager.set_cleanup_strategy(strategy)
+    if success:
+        return {"message": "清理策略设置成功", "strategy": strategy}
+    else:
+        raise HTTPException(status_code=400, detail="清理策略设置失败")
+
+
+@router.post("/data/cleanup/auto")
+async def run_auto_cleanup(current_user: dict = Depends(get_current_user)):
+    """运行自动清理"""
+    from app.services.data_manager import data_manager
+    
+    result = data_manager.run_auto_cleanup()
+    return {"message": "自动清理完成", "result": result}
+
+
+# 数据统计和分析
+@router.get("/analytics/request-trend")
+async def get_request_trend(hours: int = 24, interval: str = 'hour', current_user: dict = Depends(get_current_user)):
+    """获取请求趋势"""
+    from app.services.analytics import analytics_manager
+    
+    trend = analytics_manager.get_request_trend(hours, interval)
+    return trend
+
+
+@router.get("/analytics/response-time")
+async def get_response_time_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
+    """获取响应时间统计"""
+    from app.services.analytics import analytics_manager
+    
+    stats = analytics_manager.get_response_time_stats(hours)
+    return stats
+
+
+@router.get("/analytics/status-codes")
+async def get_status_code_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
+    """获取状态码统计"""
+    from app.services.analytics import analytics_manager
+    
+    stats = analytics_manager.get_status_code_stats(hours)
+    return stats
+
+
+@router.get("/analytics/methods")
+async def get_method_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
+    """获取请求方法统计"""
+    from app.services.analytics import analytics_manager
+    
+    stats = analytics_manager.get_method_stats(hours)
+    return stats
+
+
+@router.get("/analytics/paths")
+async def get_path_stats(hours: int = 24, limit: int = 10, current_user: dict = Depends(get_current_user)):
+    """获取路径统计"""
+    from app.services.analytics import analytics_manager
+    
+    stats = analytics_manager.get_path_stats(hours, limit)
+    return stats
+
+
+@router.get("/analytics/summary")
+async def get_summary_stats(current_user: dict = Depends(get_current_user)):
+    """获取汇总统计"""
+    from app.services.analytics import analytics_manager
+    
+    stats = analytics_manager.get_summary_stats()
+    return stats

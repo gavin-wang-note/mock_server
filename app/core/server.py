@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from app.core.config import config
 
 # 创建全局应用实例
@@ -69,6 +70,18 @@ async def root():
     </body>
     </html>
     """
+
+# 添加favicon.ico路由
+@app.get("/favicon.ico")
+async def favicon():
+    """返回favicon图标"""
+    # 使用内置的favicon图标（从htmlcov目录复制一个）
+    try:
+        return FileResponse("htmlcov/favicon_32_cb_c827f16f.png")
+    except:
+        # 如果文件不存在，返回一个空的204响应
+        from fastapi.responses import Response
+        return Response(status_code=204)
 
 # 注册路由
 from app.api import mock, admin, health

@@ -20,7 +20,10 @@ mock_router = Router()
 validator = Validator()
 templater = Templater()
 
-# 请求和响应历史
+# 导入数据库存储
+from app.storage.database import db_storage
+
+# 请求和响应历史（内存中保留最近1000条，用于快速访问）
 request_history = []
 response_history = []
 
@@ -189,7 +192,10 @@ async def record_request_and_response(request_id, start_time, method, path, head
         response_status=status_code,
         response_time=response_time
     )
+    # 保存到内存
     request_history.append(request_record)
+    # 保存到数据库
+    db_storage.save_request(request_record)
     
     # 限制历史记录数量
     if len(request_history) > 1000:
@@ -208,7 +214,10 @@ async def record_request_and_response(request_id, start_time, method, path, head
         response_time=response_time,
         delay_applied=0.0  # 实际应用的延迟可以从响应配置中获取
     )
+    # 保存到内存
     response_history.append(response_record)
+    # 保存到数据库
+    db_storage.save_response(response_record)
     
     # 限制历史记录数量
     if len(response_history) > 1000:
@@ -282,9 +291,18 @@ def get_all_routes():
     return mock_router.get_all_routes()
 
 
-def get_request_history():
-    """获取请求历史"""
-    return request_history
+def get_request_history(limit: int = 1000, offset: int = 0):
+    """获取请求历史
+    
+    Args:
+        limit: 返回记录数量限制
+        offset: 偏移量
+        
+    Returns:
+        请求历史列表
+    """
+    # 从数据库中获取请求历史
+    return db_storage.get_requests(limit=limit, offset=offset)
 
 
 def get_response_history():

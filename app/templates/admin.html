@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Server 管理界面</title>
-    <style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mock Server 管理界面</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
         * {
             margin: 0;
             padding: 0;
@@ -73,11 +74,14 @@
             margin-bottom: 20px;
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: none;
         }
         
-        .section.active {
-            display: block;
+        .tab-content {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         h2 {
@@ -276,15 +280,15 @@
         
         <nav>
             <ul>
-                <li><a href="#routes">路由管理</a></li>
-                <li><a href="#requests">请求历史</a></li>
-                <li><a href="#config">服务配置</a></li>
-                <li><a href="#status">服务状态</a></li>
+                <li><a href="#routes" class="tab-link active">路由管理</a></li>
+                <li><a href="#requests" class="tab-link">请求历史</a></li>
+                <li><a href="#config" class="tab-link">服务配置</a></li>
+                <li><a href="#status" class="tab-link">服务状态</a></li>
             </ul>
         </nav>
         
         <!-- 路由管理 -->
-        <div class="section" id="routes">
+        <div class="tab-content" id="routes-tab" style="display: block;">
             <h2>路由管理</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
@@ -328,26 +332,28 @@
                 </tbody>
             </table>
             
-            <!-- 路由管理分页控件 -->
-            <div class="pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <!-- 分页控件 -->
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <button class="btn btn-secondary" onclick="changePage('routes', 'prev')" disabled>上一页</button>
-                    <button class="btn btn-secondary" onclick="changePage('routes', 'next')" disabled>下一页</button>
-                    <span style="margin: 0 10px;">第 <span id="routes-current-page">1</span> 页，共 <span id="routes-total-pages">1</span> 页</span>
-                </div>
-                <div>
-                    <label for="routes-page-size">每页显示：</label>
-                    <select id="routes-page-size" onchange="changePageSize('routes', this.value)">
+                    <label>每页显示：</label>
+                    <select id="routes-page-size" onchange="changeRoutesPageSize()">
                         <option value="10">10</option>
                         <option value="20">20</option>
                         <option value="50">50</option>
                     </select>
                 </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(1)" id="routes-first-page">首页</button>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesCurrentPage - 1)" id="routes-prev-page">上一页</button>
+                    <span id="routes-page-info">第 1 页，共 1 页</span>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesCurrentPage + 1)" id="routes-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesTotalPages)" id="routes-last-page">末页</button>
+                </div>
             </div>
         </div>
         
         <!-- 请求历史 -->
-        <div class="section" id="requests">
+        <div class="tab-content" id="requests-tab" style="display: none;">
             <h2>请求历史</h2>
             <div class="filter-form">
                 <select id="request-method" placeholder="方法">
@@ -394,56 +400,64 @@
                 </tbody>
             </table>
             
-            <!-- 请求历史分页控件 -->
-            <div class="pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <!-- 分页控件 -->
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <button class="btn btn-secondary" onclick="changePage('requests', 'prev')" disabled>上一页</button>
-                    <button class="btn btn-secondary" onclick="changePage('requests', 'next')" disabled>下一页</button>
-                    <span style="margin: 0 10px;">第 <span id="requests-current-page">1</span> 页，共 <span id="requests-total-pages">1</span> 页</span>
-                </div>
-                <div>
-                    <label for="requests-page-size">每页显示：</label>
-                    <select id="requests-page-size" onchange="changePageSize('requests', this.value)">
+                    <label>每页显示：</label>
+                    <select id="requests-page-size" onchange="changeRequestsPageSize()">
                         <option value="10">10</option>
                         <option value="20">20</option>
                         <option value="50">50</option>
                     </select>
                 </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(1)" id="requests-first-page">首页</button>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsCurrentPage - 1)" id="requests-prev-page">上一页</button>
+                    <span id="requests-page-info">第 1 页，共 1 页</span>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsCurrentPage + 1)" id="requests-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsTotalPages)" id="requests-last-page">末页</button>
+                </div>
             </div>
         </div>
         
         <!-- 服务配置 -->
-        <div class="section" id="config">
+        <div class="tab-content" id="config-tab" style="display: none;">
             <h2>服务配置</h2>
             <form id="config-form">
                 <div class="form-group">
                     <label>服务器地址</label>
-                    <input type="text" id="server-host" value="{{ config.server.host }}">
+                    <input type="text" id="server-host" value="0.0.0.0" disabled style="background-color: #f5f5f5; cursor: not-allowed;">
                 </div>
                 <div class="form-group">
                     <label>服务器端口</label>
-                    <input type="number" id="server-port" value="{{ config.server.port }}">
+                    <input type="number" id="server-port" value="{{ config.server.port }}" min="1" max="65535">
+                    <small id="port-error" style="color: red; display: none;"></small>
                 </div>
-                <div class="form-group">
-                    <label>启用HTTPS</label>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="enable-https" {% if config.server.enable_https %}checked{% endif %}>
+                    <label for="enable-https" style="margin-bottom: 0;">启用HTTPS</label>
                 </div>
-                <div class="form-group">
-                    <label>启用代理模式</label>
-                    <input type="checkbox" id="enable-proxy" {% if config.proxy.enable %}checked{% endif %}>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="enable-proxy" {% if config.proxy.enable %}checked{% endif %} onchange="toggleProxyInput()">
+                    <label for="enable-proxy" style="margin-bottom: 0;">启用代理模式</label>
                 </div>
                 <div class="form-group">
                     <label>代理目标URL</label>
-                    <input type="text" id="proxy-target" value="{{ config.proxy.target_url or '' }}">
+                    <input type="text" id="proxy-target" value="{{ config.proxy.target_url or '' }}" {% if not config.proxy.enable %}disabled style="background-color: #f5f5f5; cursor: not-allowed;"{% endif %}>
+                    <small id="proxy-error" style="color: red; display: none;"></small>
                 </div>
-                <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                    <button type="button" class="btn btn-secondary" onclick="restoreDefaultConfig()">恢复默认</button>
+                </div>
+                <div id="save-message" style="margin-top: 10px; padding: 10px; border-radius: 3px; display: none;"></div>
             </form>
         </div>
         
         <!-- 服务状态 -->
-        <div class="section" id="status">
+        <div class="tab-content" id="status-tab" style="display: none;">
             <h2>服务状态</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                 <div class="request-detail">
                     <h3>运行时间</h3>
                     <p id="uptime">计算中...</p>
@@ -460,6 +474,94 @@
                     <h3>服务状态</h3>
                     <p id="service-status" class="status-badge status-enabled">运行中</p>
                 </div>
+            </div>
+            
+            <!-- 数据统计和分析 -->
+            <h3>数据统计和分析</h3>
+            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; white-space: nowrap;">
+                <label style="font-weight: normal;">统计时间范围：</label>
+                <select id="analytics-hours" onchange="updateAnalytics()" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 3px; width: 120px;">
+                    <option value="1" selected>1小时</option>
+                    <option value="6">6小时</option>
+                    <option value="24">24小时</option>
+                    <option value="48">48小时</option>
+                    <option value="72">72小时</option>
+                    <option value="168">7天</option>
+                </select>
+                <button class="btn btn-primary" onclick="updateAnalytics()" style="background-color: #1890ff; border-color: #1890ff;">更新数据</button>
+            </div>
+            
+            <!-- 请求趋势图表 -->
+            <div class="request-detail" style="margin-bottom: 20px;">
+                <h4>请求趋势</h4>
+                <div style="width: 100%; height: 300px;">
+                    <canvas id="request-trend-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 响应时间统计 -->
+            <div class="request-detail" style="margin-bottom: 20px;">
+                <h4>响应时间统计</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    <div>
+                        <p><strong>平均响应时间：</strong><span id="avg-response-time">0</span>ms</p>
+                    </div>
+                    <div>
+                        <p><strong>最小响应时间：</strong><span id="min-response-time">0</span>ms</p>
+                    </div>
+                    <div>
+                        <p><strong>最大响应时间：</strong><span id="max-response-time">0</span>ms</p>
+                    </div>
+                    <div>
+                        <p><strong>P95响应时间：</strong><span id="p95-response-time">0</span>ms</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 状态码统计 -->
+            <div class="request-detail" style="margin-bottom: 20px;">
+                <h4>状态码统计</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px;">
+                    <div>
+                        <p><strong>2xx：</strong><span id="status-2xx">0</span></p>
+                    </div>
+                    <div>
+                        <p><strong>3xx：</strong><span id="status-3xx">0</span></p>
+                    </div>
+                    <div>
+                        <p><strong>4xx：</strong><span id="status-4xx">0</span></p>
+                    </div>
+                    <div>
+                        <p><strong>5xx：</strong><span id="status-5xx">0</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 请求方法统计 -->
+            <div class="request-detail" style="margin-bottom: 20px;">
+                <h4>请求方法统计</h4>
+                <div style="width: 100%; height: 300px;">
+                    <canvas id="method-stats-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 热门路径统计 -->
+            <div class="request-detail" style="margin-bottom: 20px;">
+                <h4>热门路径</h4>
+                <table id="hot-paths-table">
+                    <thead>
+                        <tr>
+                            <th>路径</th>
+                            <th>请求数</th>
+                            <th>平均响应时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -634,23 +736,34 @@
         
         // 请求历史管理
         function filterRequests() {
-            // 重置到第一页
-            paginationState.requests.currentPage = 1;
+            const method = document.getElementById('request-method').value;
+            const path = document.getElementById('request-path').value.toLowerCase();
+            const status = document.getElementById('request-status').value;
             
-            // 重新获取数据（会自动应用过滤条件）
-            fetchPaginatedData('requests');
+            const rows = document.querySelectorAll('#requests-table tbody tr');
+            
+            rows.forEach(row => {
+                const rowMethod = row.cells[1].textContent;
+                const rowPath = row.cells[2].textContent.toLowerCase();
+                const rowStatus = row.cells[3].textContent;
+                
+                const methodMatch = !method || rowMethod === method;
+                const pathMatch = !path || rowPath.includes(path);
+                const statusMatch = !status || rowStatus === status;
+                
+                if (methodMatch && pathMatch && statusMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
         
         function clearFilters() {
             document.getElementById('request-method').value = '';
             document.getElementById('request-path').value = '';
             document.getElementById('request-status').value = '';
-            
-            // 重置到第一页
-            paginationState.requests.currentPage = 1;
-            
-            // 重新获取数据
-            fetchPaginatedData('requests');
+            filterRequests();
         }
         
         function clearRequests() {
@@ -718,20 +831,137 @@
             document.getElementById('request-detail-modal').style.display = 'none';
         }
         
+        // 切换代理输入框状态
+        function toggleProxyInput() {
+            const enableProxy = document.getElementById('enable-proxy').checked;
+            const proxyTarget = document.getElementById('proxy-target');
+            
+            if (enableProxy) {
+                proxyTarget.disabled = false;
+                proxyTarget.style.backgroundColor = '#ffffff';
+                proxyTarget.style.cursor = 'text';
+            } else {
+                proxyTarget.disabled = true;
+                proxyTarget.style.backgroundColor = '#f5f5f5';
+                proxyTarget.style.cursor = 'not-allowed';
+            }
+        }
+        
+        // 恢复默认配置
+        function restoreDefaultConfig() {
+            if (confirm('确定要恢复默认配置吗？这将覆盖当前的所有配置设置。')) {
+                // 默认配置
+                const defaultConfig = {
+                    server: {
+                        host: '0.0.0.0',
+                        port: 8080,
+                        enable_https: false
+                    },
+                    proxy: {
+                        enable: false,
+                        target_url: ''
+                    }
+                };
+                
+                // 更新表单
+                document.getElementById('server-port').value = defaultConfig.server.port;
+                document.getElementById('enable-https').checked = defaultConfig.server.enable_https;
+                document.getElementById('enable-proxy').checked = defaultConfig.proxy.enable;
+                document.getElementById('proxy-target').value = defaultConfig.proxy.target_url;
+                
+                // 切换代理输入框状态
+                toggleProxyInput();
+                
+                // 保存默认配置
+                fetch('/admin/config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer mock_server_admin_token'
+                    },
+                    body: JSON.stringify(defaultConfig)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('保存失败：' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 显示成功提示
+                    const saveMessage = document.getElementById('save-message');
+                    saveMessage.textContent = '默认配置恢复成功！';
+                    saveMessage.style.backgroundColor = '#d4edda';
+                    saveMessage.style.color = '#155724';
+                    saveMessage.style.display = 'block';
+                    
+                    // 3秒后隐藏提示
+                    setTimeout(() => {
+                        saveMessage.style.display = 'none';
+                    }, 3000);
+                })
+                .catch(error => {
+                    // 显示失败提示
+                    const saveMessage = document.getElementById('save-message');
+                    saveMessage.textContent = '默认配置恢复失败：' + error.message;
+                    saveMessage.style.backgroundColor = '#f8d7da';
+                    saveMessage.style.color = '#721c24';
+                    saveMessage.style.display = 'block';
+                });
+            }
+        }
+        
         // 服务配置管理
         function saveConfig() {
+            // 重置错误提示
+            document.getElementById('port-error').style.display = 'none';
+            document.getElementById('proxy-error').style.display = 'none';
+            document.getElementById('save-message').style.display = 'none';
+            
+            // 获取表单数据
+            const port = parseInt(document.getElementById('server-port').value);
+            const enableHttps = document.getElementById('enable-https').checked;
+            const enableProxy = document.getElementById('enable-proxy').checked;
+            const proxyTarget = document.getElementById('proxy-target').value;
+            
+            // 端口校验
+            if (isNaN(port) || port < 1 || port > 65535) {
+                document.getElementById('port-error').textContent = '端口号必须在1-65535之间';
+                document.getElementById('port-error').style.display = 'block';
+                return;
+            }
+            
+            // 代理URL校验
+            if (enableProxy) {
+                if (!proxyTarget) {
+                    document.getElementById('proxy-error').textContent = '启用代理模式时，必须设置代理目标URL';
+                    document.getElementById('proxy-error').style.display = 'block';
+                    return;
+                }
+                
+                try {
+                    new URL(proxyTarget);
+                } catch (error) {
+                    document.getElementById('proxy-error').textContent = '代理目标URL格式不正确';
+                    document.getElementById('proxy-error').style.display = 'block';
+                    return;
+                }
+            }
+            
+            // 构建配置数据
             const configData = {
                 server: {
-                    host: document.getElementById('server-host').value,
-                    port: parseInt(document.getElementById('server-port').value),
-                    enable_https: document.getElementById('enable-https').checked
+                    host: '0.0.0.0', // 固定为0.0.0.0
+                    port: port,
+                    enable_https: enableHttps
                 },
                 proxy: {
-                    enable: document.getElementById('enable-proxy').checked,
-                    target_url: document.getElementById('proxy-target').value
+                    enable: enableProxy,
+                    target_url: proxyTarget
                 }
             };
             
+            // 保存配置
             fetch('/admin/config', {
                 method: 'PUT',
                 headers: {
@@ -740,12 +970,32 @@
                 },
                 body: JSON.stringify(configData)
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('保存失败：' + response.statusText);
+                }
+                return response.json();
+            })
             .then(data => {
-                alert('配置保存成功！');
+                // 显示成功提示
+                const saveMessage = document.getElementById('save-message');
+                saveMessage.textContent = '配置保存成功！';
+                saveMessage.style.backgroundColor = '#d4edda';
+                saveMessage.style.color = '#155724';
+                saveMessage.style.display = 'block';
+                
+                // 3秒后隐藏提示
+                setTimeout(() => {
+                    saveMessage.style.display = 'none';
+                }, 3000);
             })
             .catch(error => {
-                alert('配置保存失败：' + error.message);
+                // 显示失败提示
+                const saveMessage = document.getElementById('save-message');
+                saveMessage.textContent = '配置保存失败：' + error.message;
+                saveMessage.style.backgroundColor = '#f8d7da';
+                saveMessage.style.color = '#721c24';
+                saveMessage.style.display = 'block';
             });
         }
         
@@ -760,199 +1010,405 @@
             }
         }
         
-        // 标签页切换功能
-        function showTab(tabId) {
-            // 隐藏所有标签页
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // 移除所有导航链接的active类
-            document.querySelectorAll('nav a').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // 显示目标标签页
-            document.querySelector(tabId).classList.add('active');
-            
-            // 激活对应的导航链接
-            document.querySelector(`nav a[href="${tabId}"]`).classList.add('active');
-        }
-        
-        // 分页状态管理
-        const paginationState = {
-            routes: {
-                currentPage: 1,
-                pageSize: 10,
-                totalItems: 0,
-                totalPages: 1
-            },
-            requests: {
-                currentPage: 1,
-                pageSize: 10,
-                totalItems: 0,
-                totalPages: 1
-            }
-        };
-        
-        // 页码切换函数
-        function changePage(type, direction) {
-            const state = paginationState[type];
-            
-            if (direction === 'prev' && state.currentPage > 1) {
-                state.currentPage--;
-            } else if (direction === 'next' && state.currentPage < state.totalPages) {
-                state.currentPage++;
-            }
-            
-            fetchPaginatedData(type);
-            updatePaginationUI(type);
-        }
-        
-        // 每页数量变更函数
-        function changePageSize(type, size) {
-            const state = paginationState[type];
-            state.pageSize = parseInt(size);
-            state.currentPage = 1; // 重置到第一页
-            
-            fetchPaginatedData(type);
-            updatePaginationUI(type);
-        }
-        
-        // 更新分页UI
-        function updatePaginationUI(type) {
-            const state = paginationState[type];
-            
-            // 更新页码显示
-            document.getElementById(`${type}-current-page`).textContent = state.currentPage;
-            document.getElementById(`${type}-total-pages`).textContent = state.totalPages;
-            
-            // 更新按钮状态
-            const prevBtn = document.querySelector(`#${type} .pagination button:first-child`);
-            const nextBtn = document.querySelector(`#${type} .pagination button:nth-child(2)`);
-            
-            if (prevBtn) prevBtn.disabled = state.currentPage === 1;
-            if (nextBtn) nextBtn.disabled = state.currentPage === state.totalPages;
-        }
-        
-        // 获取分页数据
-        function fetchPaginatedData(type) {
-            const state = paginationState[type];
-            const offset = (state.currentPage - 1) * state.pageSize;
-            
-            // 构建请求URL
-            let url = `/admin/${type}?limit=${state.pageSize}&offset=${offset}`;
-            
-            // 如果是请求历史，添加过滤参数
-            if (type === 'requests') {
-                const method = document.getElementById('request-method').value;
-                const path = document.getElementById('request-path').value;
-                const status = document.getElementById('request-status').value;
+        // 标签页切换
+        document.querySelectorAll('.tab-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
                 
-                if (method) url += `&method=${method}`;
-                if (path) url += `&path=${path}`;
-                if (status) url += `&status_code=${status}`;
-            }
+                // 移除所有标签的激活状态
+                document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+                // 添加当前标签的激活状态
+                this.classList.add('active');
+                
+                // 隐藏所有内容
+                document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                // 显示对应内容
+                const targetId = this.getAttribute('href').substring(1) + '-tab';
+                document.getElementById(targetId).style.display = 'block';
+            });
+        });
+        
+        // 路由管理分页
+        let routesCurrentPage = 1;
+        let routesPageSize = 10;
+        let routesTotalItems = 0;
+        let routesTotalPages = 0;
+        
+        function initRoutesPagination() {
+            const rows = document.querySelectorAll('#routes-table tbody tr');
+            routesTotalItems = rows.length;
+            routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
+            updateRoutesPaginationUI();
+            applyRoutesPagination();
+        }
+        
+        function updateRoutesPaginationUI() {
+            document.getElementById('routes-page-info').textContent = `第 ${routesCurrentPage} 页，共 ${routesTotalPages} 页`;
+            document.getElementById('routes-prev-page').disabled = routesCurrentPage === 1;
+            document.getElementById('routes-first-page').disabled = routesCurrentPage === 1;
+            document.getElementById('routes-next-page').disabled = routesCurrentPage === routesTotalPages;
+            document.getElementById('routes-last-page').disabled = routesCurrentPage === routesTotalPages;
+        }
+        
+        function applyRoutesPagination() {
+            const rows = document.querySelectorAll('#routes-table tbody tr');
+            const startIndex = (routesCurrentPage - 1) * routesPageSize;
+            const endIndex = startIndex + routesPageSize;
             
-            // 发送AJAX请求
-            fetch(url, {
+            rows.forEach((row, index) => {
+                if (index >= startIndex && index < endIndex) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        function changeRoutesPage(page) {
+            if (page >= 1 && page <= routesTotalPages) {
+                routesCurrentPage = page;
+                updateRoutesPaginationUI();
+                applyRoutesPagination();
+            }
+        }
+        
+        function changeRoutesPageSize() {
+            routesPageSize = parseInt(document.getElementById('routes-page-size').value);
+            routesCurrentPage = 1;
+            initRoutesPagination();
+        }
+        
+        // 请求历史分页
+        let requestsCurrentPage = 1;
+        let requestsPageSize = 10;
+        let requestsTotalItems = 0;
+        let requestsTotalPages = 0;
+        
+        function initRequestsPagination() {
+            const rows = document.querySelectorAll('#requests-table tbody tr');
+            requestsTotalItems = rows.length;
+            requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
+            updateRequestsPaginationUI();
+            applyRequestsPagination();
+        }
+        
+        function updateRequestsPaginationUI() {
+            document.getElementById('requests-page-info').textContent = `第 ${requestsCurrentPage} 页，共 ${requestsTotalPages} 页`;
+            document.getElementById('requests-prev-page').disabled = requestsCurrentPage === 1;
+            document.getElementById('requests-first-page').disabled = requestsCurrentPage === 1;
+            document.getElementById('requests-next-page').disabled = requestsCurrentPage === requestsTotalPages;
+            document.getElementById('requests-last-page').disabled = requestsCurrentPage === requestsTotalPages;
+        }
+        
+        function applyRequestsPagination() {
+            const rows = document.querySelectorAll('#requests-table tbody tr');
+            const startIndex = (requestsCurrentPage - 1) * requestsPageSize;
+            const endIndex = startIndex + requestsPageSize;
+            
+            rows.forEach((row, index) => {
+                if (index >= startIndex && index < endIndex) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        function changeRequestsPage(page) {
+            if (page >= 1 && page <= requestsTotalPages) {
+                requestsCurrentPage = page;
+                updateRequestsPaginationUI();
+                applyRequestsPagination();
+            }
+        }
+        
+        function changeRequestsPageSize() {
+            requestsPageSize = parseInt(document.getElementById('requests-page-size').value);
+            requestsCurrentPage = 1;
+            initRequestsPagination();
+        }
+        
+        // 数据统计和分析
+        let requestTrendChart = null;
+        let methodStatsChart = null;
+        
+        function updateRequestTrend(hours, interval) {
+            console.log('开始更新请求趋势，hours:', hours, 'interval:', interval);
+            fetch(`/admin/analytics/request-trend?hours=${hours}&interval=${interval}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => {
+                console.log('获取请求趋势响应：', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('获取请求趋势数据：', data);
+                const ctx = document.getElementById('request-trend-chart').getContext('2d');
+                console.log('获取图表上下文：', ctx);
+                
+                if (requestTrendChart) {
+                    console.log('销毁现有图表');
+                    requestTrendChart.destroy();
+                }
+                
+                console.log('创建新图表');
+                
+                // 处理响应时间数据和单位
+                let responseTimes = data.response_times;
+                let timeUnit = 'ms';
+                let timeLabel = '平均响应时间 (ms)';
+                let axisLabel = '响应时间 (ms)';
+                
+                // 检查是否需要使用秒作为单位
+                const hasLargeValues = responseTimes.some(time => time >= 1);
+                if (hasLargeValues) {
+                    timeUnit = 's';
+                    timeLabel = '平均响应时间 (s)';
+                    axisLabel = '响应时间 (s)';
+                } else {
+                    // 转换为毫秒
+                    responseTimes = responseTimes.map(time => time * 1000);
+                }
+                
+                // 根据时间范围和数据点数量计算横坐标间隔
+                let maxLabels = 12; // 最大显示12个标签
+                let stepSize = 1;
+                if (data.labels.length > maxLabels) {
+                    stepSize = Math.ceil(data.labels.length / maxLabels);
+                }
+                
+                requestTrendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '请求数',
+                            data: data.request_counts,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4
+                        }, {
+                            label: timeLabel,
+                            data: responseTimes,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '请求数'
+                                }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: axisLabel
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    autoSkip: true,
+                                    maxTicksLimit: maxLabels,
+                                    stepSize: stepSize
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        // 显示对应时间点，而不是整点
+                                        if (data.time_points && data.time_points[context[0].dataIndex]) {
+                                            return data.time_points[context[0].dataIndex];
+                                        }
+                                        return context[0].label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log('请求趋势图表创建完成');
+            })
+            .catch(error => {
+                console.error('获取请求趋势失败：', error);
+            });
+        }
+        
+        function updateResponseTimeStats(hours) {
+            fetch(`/admin/analytics/response-time?hours=${hours}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
                 }
             })
             .then(response => response.json())
             .then(data => {
-                // 更新表格数据
-                updateTable(type, data);
-                
-                // 模拟更新总页数（实际应该从后端获取）
-                // 这里暂时使用前端计算，后续可以修改为后端返回总页数
-                if (type === 'routes') {
-                    // 由于后端没有返回总页数，这里暂时使用一个估算值
-                    // 实际应用中应该修改后端API返回总页数
-                    state.totalPages = Math.ceil(50 / state.pageSize); // 假设最多50条路由
-                } else if (type === 'requests') {
-                    state.totalPages = Math.ceil(100 / state.pageSize); // 假设最多100条请求
-                }
-                
-                updatePaginationUI(type);
+                document.getElementById('avg-response-time').textContent = (data.avg_response_time * 1000).toFixed(2);
+                document.getElementById('min-response-time').textContent = (data.min_response_time * 1000).toFixed(2);
+                document.getElementById('max-response-time').textContent = (data.max_response_time * 1000).toFixed(2);
+                document.getElementById('p95-response-time').textContent = (data.p95_response_time * 1000).toFixed(2);
             })
             .catch(error => {
-                console.error('获取数据失败:', error);
-                alert('获取数据失败，请重试');
+                console.error('获取响应时间统计失败：', error);
             });
         }
         
-        // 更新表格数据
-        function updateTable(type, data) {
-            const tableId = type === 'routes' ? 'routes-table' : 'requests-table';
-            const tbody = document.querySelector(`#${tableId} tbody`);
-            
-            if (!tbody) return;
-            
-            // 清空表格
-            tbody.innerHTML = '';
-            
-            // 填充新数据
-            if (type === 'routes') {
-                data.forEach(route => {
+        function updateStatusCodeStats(hours) {
+            fetch(`/admin/analytics/status-codes?hours=${hours}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status-2xx').textContent = data.status_categories['2xx'] || 0;
+                document.getElementById('status-3xx').textContent = data.status_categories['3xx'] || 0;
+                document.getElementById('status-4xx').textContent = data.status_categories['4xx'] || 0;
+                document.getElementById('status-5xx').textContent = data.status_categories['5xx'] || 0;
+            })
+            .catch(error => {
+                console.error('获取状态码统计失败：', error);
+            });
+        }
+        
+        function updateMethodStats(hours) {
+            console.log('开始更新请求方法统计，hours:', hours);
+            fetch(`/admin/analytics/methods?hours=${hours}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => {
+                console.log('获取请求方法统计响应：', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('获取请求方法统计数据：', data);
+                const ctx = document.getElementById('method-stats-chart').getContext('2d');
+                console.log('获取图表上下文：', ctx);
+                
+                if (methodStatsChart) {
+                    console.log('销毁现有图表');
+                    methodStatsChart.destroy();
+                }
+                
+                console.log('创建新图表');
+                methodStatsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.method_counts),
+                        datasets: [{
+                            label: '请求数',
+                            data: Object.values(data.method_counts),
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 206, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+                console.log('请求方法统计图表创建完成');
+            })
+            .catch(error => {
+                console.error('获取请求方法统计失败：', error);
+            });
+        }
+        
+        function updateHotPaths(hours) {
+            fetch(`/admin/analytics/paths?hours=${hours}&limit=10`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#hot-paths-table tbody');
+                tbody.innerHTML = '';
+                
+                if (data.top_paths.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">暂无数据</td></tr>';
+                    return;
+                }
+                
+                data.top_paths.forEach(path => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${route.id.substring(0, 8)}...</td>
-                        <td>${route.name}</td>
-                        <td>${route.match_rule.path}</td>
-                        <td>${route.match_rule.methods.join(', ')}</td>
-                        <td>
-                            <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
-                                ${route.enabled ? '启用' : '禁用'}
-                            </span>
-                        </td>
-                        <td>${timestampToDateTime(route.created_at)}</td>
-                        <td>
-                            <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
-                            <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
-                        </td>
+                        <td>${path.path}</td>
+                        <td>${path.count}</td>
+                        <td>${(path.avg_response_time * 1000).toFixed(2)}ms</td>
                     `;
                     tbody.appendChild(row);
                 });
-            } else if (type === 'requests') {
-                data.forEach(req => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${timestampToDateTime(req.timestamp)}</td>
-                        <td>${req.method}</td>
-                        <td>${req.path}</td>
-                        <td>${req.response_status}</td>
-                        <td>${req.response_time.toFixed(3)}s</td>
-                        <td>${req.client_ip}</td>
-                        <td>
-                            <button class="btn btn-secondary" onclick="viewRequest('${req.id}')">查看</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
+            })
+            .catch(error => {
+                console.error('获取热门路径失败：', error);
+            });
+        }
+        
+        function updateAnalytics() {
+            const hours = parseInt(document.getElementById('analytics-hours').value);
+            
+            // 根据时间范围确定时间间隔
+            let interval = 'hour';
+            if (hours <= 1) {
+                // 1小时或更少，使用分钟作为时间间隔
+                interval = 'minute';
+            } else {
+                // 1小时以上，使用小时作为时间间隔
+                interval = 'hour';
             }
+            
+            // 更新请求趋势
+            updateRequestTrend(hours, interval);
+            
+            // 更新响应时间统计
+            updateResponseTimeStats(hours);
+            
+            // 更新状态码统计
+            updateStatusCodeStats(hours);
+            
+            // 更新请求方法统计
+            updateMethodStats(hours);
+            
+            // 更新热门路径
+            updateHotPaths(hours);
         }
         
-        // 初始化标签页
+        // 初始化分页
         document.addEventListener('DOMContentLoaded', function() {
-            // 默认显示第一个标签页
-            showTab('#routes');
-            
-            // 添加导航点击事件
-            document.querySelectorAll('nav a').forEach(anchor => {
-                anchor.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href');
-                    showTab(targetId);
-                });
-            });
-            
-            // 初始化分页状态
-            fetchPaginatedData('routes');
-            updatePaginationUI('routes');
-            fetchPaginatedData('requests');
-            updatePaginationUI('requests');
+            initRoutesPagination();
+            initRequestsPagination();
+            updateAnalytics();
         });
     </script>
 </body>

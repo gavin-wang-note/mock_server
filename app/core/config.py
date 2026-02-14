@@ -6,7 +6,7 @@ from pydantic import Field
 class ServerConfig(BaseSettings):
     """服务器配置"""
     host: str = Field(default="0.0.0.0", description="服务器监听地址")
-    port: int = Field(default=8082, description="服务器监听端口")
+    port: int = Field(default=8080, description="服务器监听端口")
     enable_https: bool = Field(default=False, description="是否启用HTTPS")
     https_cert: Optional[str] = Field(default=None, description="HTTPS证书路径")
     https_key: Optional[str] = Field(default=None, description="HTTPS私钥路径")
@@ -30,6 +30,7 @@ class StorageConfig(BaseSettings):
     """存储配置"""
     enable_persistence: bool = Field(default=True, description="是否启用配置持久化")
     config_file: str = Field(default="config/default.yaml", description="配置文件路径")
+    db_path: str = Field(default="data/mock_server.db", description="数据库文件路径")
     
     class Config:
         env_prefix = "STORAGE_"

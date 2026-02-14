@@ -1,12 +1,11 @@
 from typing import Dict, Optional, Any
-from datetime import datetime
 from pydantic import BaseModel, Field
 
 
 class Request(BaseModel):
     """请求记录"""
     id: str = Field(..., description="请求唯一标识符")
-    timestamp: datetime = Field(..., description="请求时间戳")
+    timestamp: float = Field(..., description="请求时间戳")
     method: str = Field(..., description="HTTP方法")
     path: str = Field(..., description="请求路径")
     query_params: Optional[Dict[str, Any]] = Field(default=None, description="查询参数")

@@ -21,6 +21,7 @@ async def health_check():
     
     # 计算最近5分钟的请求数
     import time
+    from datetime import datetime
     five_minutes_ago = time.time() - 300
     recent_requests = len([r for r in request_history if r.timestamp > five_minutes_ago])
     
