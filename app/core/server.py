@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.core.config import config
 
 # 创建全局应用实例
@@ -9,6 +10,9 @@ app = FastAPI(
     description="企业级Python Mock Server",
     version="1.0.0"
 )
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # 配置CORS
 app.add_middleware(

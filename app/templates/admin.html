@@ -4,7 +4,27 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mock Server 管理界面</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <!-- Chart.js CDN 链接 -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+        <!-- 加载超时处理 -->
+        <script>
+            // 检查 Chart.js 是否在 5 秒内加载完成
+            setTimeout(function() {
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js 加载超时，使用备用方案');
+                    // 创建一个简单的 Chart 模拟构造函数，避免错误
+                    window.Chart = function(ctx, options) {
+                        return {
+                            destroy: function() {}
+                        };
+                    };
+                    // 添加必要的静态属性
+                    window.Chart.registry = {
+                        addPlugin: function() {}
+                    };
+                }
+            }, 5000);
+        </script>
         <style>
         * {
             margin: 0;
@@ -187,11 +207,13 @@
         
         .modal-content {
             background-color: #fefefe;
-            margin: 15% auto;
+            margin: 10% auto;
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
             max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
             border-radius: 5px;
         }
         
@@ -269,6 +291,40 @@
                 padding: 5px;
             }
         }
+        
+        /* 浮层提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .toast-content {
+            display: flex;
+            align-items: center;
+        }
+        
+        .toast.error {
+            background-color: #f44336;
+        }
+        
+        .toast.info {
+            background-color: #2196F3;
+        }
     </style>
 </head>
 <body>
@@ -295,6 +351,7 @@
                 <div>
                     <input type="text" id="route-search" placeholder="搜索路由..." style="padding: 8px; width: 200px;">
                     <button class="btn btn-secondary" onclick="searchRoutes()">搜索</button>
+                    <button class="btn btn-primary" onclick="resetRouteSearch()">重置</button>
                 </div>
             </div>
             
@@ -367,7 +424,7 @@
                 <input type="text" id="request-path" placeholder="路径包含">
                 <input type="number" id="request-status" placeholder="状态码">
                 <button class="btn btn-primary" onclick="filterRequests()">过滤</button>
-                <button class="btn btn-secondary" onclick="clearFilters()">清空</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">重置</button>
                 <button class="btn btn-danger" onclick="clearRequests()">清空历史</button>
             </div>
             
@@ -611,11 +668,138 @@
         </div>
     </div>
     
+    <!-- 编辑路由模态框 -->
+    <div id="edit-route-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditRouteModal()">&times;</span>
+            <h2>编辑路由</h2>
+            <form id="edit-route-form">
+                <input type="hidden" id="edit-route-id">
+                <div class="form-group">
+                    <label>路由名称</label>
+                    <input type="text" id="edit-route-name" required>
+                </div>
+                <div class="form-group">
+                    <label>路径</label>
+                    <input type="text" id="edit-route-path" placeholder="例如: /api/users/{id}" required>
+                </div>
+                <div class="form-group">
+                    <label>HTTP方法</label>
+                    <input type="text" id="edit-route-methods" placeholder="例如: GET,POST" required>
+                </div>
+                <div class="form-group">
+                    <label>状态码</label>
+                    <input type="number" id="edit-route-status" value="200" required>
+                </div>
+                <div class="form-group">
+                    <label>响应内容</label>
+                    <textarea id="edit-route-content" placeholder='例如: {"id": "1", "name": "User"}' required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>响应延迟 (秒)</label>
+                    <input type="number" id="edit-route-delay" value="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>启用状态</label>
+                    <select id="edit-route-enabled">
+                        <option value="true">启用</option>
+                        <option value="false">禁用</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitEditRoute()">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditRouteModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 浮层提示组件 -->
+    <div id="toast-message" class="toast">
+        <div class="toast-content">
+            <span id="toast-text"></span>
+        </div>
+    </div>
+    
     <script>
         // 时间戳转换为日期时间
         function timestampToDateTime(timestamp) {
             const date = new Date(timestamp * 1000);
-            return date.toLocaleString('zh-CN');
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        
+        // 显示浮层提示
+        function showToast(message, type = 'success', duration = 3000) {
+            const toast = document.getElementById('toast-message');
+            const toastText = document.getElementById('toast-text');
+            
+            // 设置消息和类型
+            toastText.textContent = message;
+            toast.className = 'toast';
+            toast.classList.add(type);
+            
+            // 显示提示
+            toast.classList.add('show');
+            
+            // 定时隐藏
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+        
+        // 更新路由列表
+        function updateRoutesList() {
+            fetch('/admin/routes', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(routes => {
+                const tbody = document.querySelector('#routes-table tbody');
+                tbody.innerHTML = '';
+                
+                if (routes.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无路由数据</p>
+                            <p style="margin-top: 10px;">点击"创建新路由"按钮添加第一条路由</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                } else {
+                    // 显示路由列表
+                    routes.forEach(route => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${route.id.substring(0, 8)}...</td>
+                            <td>${route.name}</td>
+                            <td>${route.match_rule ? route.match_rule.path : ''}</td>
+                            <td>${route.match_rule ? route.match_rule.methods.join(', ') : ''}</td>
+                            <td>
+                                <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
+                                    ${route.enabled ? '启用' : '禁用'}
+                                </span>
+                            </td>
+                            <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            })
+            .catch(error => {
+                showToast('更新路由列表失败：' + error.message, 'error');
+            });
         }
         
         // 格式化时间戳
@@ -662,6 +846,14 @@
             const content = document.getElementById('route-content').value;
             const delay = parseFloat(document.getElementById('route-delay').value);
             
+            let routeContent;
+            try {
+                routeContent = JSON.parse(content);
+            } catch (e) {
+                showToast('响应内容必须是有效的JSON格式', 'error');
+                return;
+            }
+            
             const routeData = {
                 name: name,
                 match_rule: {
@@ -669,8 +861,8 @@
                     methods: methods
                 },
                 response: {
-                    status_code: status,
-                    content: JSON.parse(content),
+                    status: status,
+                    content: routeContent,
                     delay: delay
                 }
             };
@@ -685,17 +877,99 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert('路由创建成功！');
+                showToast('路由创建成功！');
                 closeCreateRouteModal();
-                location.reload();
+                updateRoutesList();
             })
             .catch(error => {
-                alert('路由创建失败：' + error.message);
+                showToast('路由创建失败：' + error.message, 'error');
             });
         }
         
         function editRoute(routeId) {
-            alert('编辑路由功能开发中...');
+            // 获取路由详情
+            fetch(`/admin/routes/${routeId}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(route => {
+                // 填充表单
+                document.getElementById('edit-route-id').value = route.id || '';
+                document.getElementById('edit-route-name').value = route.name || '';
+                document.getElementById('edit-route-path').value = (route.match_rule && route.match_rule.path) || '';
+                document.getElementById('edit-route-methods').value = (route.match_rule && route.match_rule.methods) ? route.match_rule.methods.join(', ') : '';
+                document.getElementById('edit-route-status').value = (route.response && route.response.status) || 200;
+                document.getElementById('edit-route-content').value = JSON.stringify((route.response && route.response.content) || { message: "响应内容" }, null, 2);
+                document.getElementById('edit-route-delay').value = (route.response && route.response.delay) || 0;
+                document.getElementById('edit-route-enabled').value = route.enabled !== false;
+                
+                // 显示模态框
+                document.getElementById('edit-route-modal').style.display = 'block';
+            })
+            .catch(error => {
+                alert('获取路由详情失败：' + error.message);
+            });
+        }
+        
+        function closeEditRouteModal() {
+            document.getElementById('edit-route-modal').style.display = 'none';
+            document.getElementById('edit-route-form').reset();
+        }
+        
+        function submitEditRoute() {
+            const routeId = document.getElementById('edit-route-id').value;
+            const name = document.getElementById('edit-route-name').value;
+            const path = document.getElementById('edit-route-path').value;
+            const methods = document.getElementById('edit-route-methods').value.split(',').map(m => m.trim());
+            const status = parseInt(document.getElementById('edit-route-status').value);
+            let content;
+            try {
+                content = JSON.parse(document.getElementById('edit-route-content').value);
+            } catch (e) {
+                showToast('响应内容必须是有效的JSON格式', 'error');
+                return;
+            }
+            const delay = parseFloat(document.getElementById('edit-route-delay').value);
+            const enabled = document.getElementById('edit-route-enabled').value === 'true';
+            
+            const routeData = {
+                name: name,
+                match_rule: {
+                    path: path,
+                    methods: methods
+                },
+                response: {
+                    status: status,
+                    content: content,
+                    delay: delay
+                },
+                enabled: enabled
+            };
+            
+            fetch(`/admin/routes/${routeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(routeData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('路由编辑成功！');
+                closeEditRouteModal();
+                updateRoutesList();
+            })
+            .catch(error => {
+                showToast('路由编辑失败：' + error.message, 'error');
+            });
         }
         
         function deleteRoute(routeId) {
@@ -708,18 +982,29 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    alert('路由删除成功！');
-                    location.reload();
+                    showToast('路由删除成功！');
+                    updateRoutesList();
                 })
                 .catch(error => {
-                    alert('路由删除失败：' + error.message);
+                    showToast('路由删除失败：' + error.message, 'error');
                 });
             }
         }
         
         function searchRoutes() {
             const searchTerm = document.getElementById('route-search').value.toLowerCase();
+            
+            const tbody = document.querySelector('#routes-table tbody');
+            // 先清除所有现有的提示行
+            const existingEmptyRows = tbody.querySelectorAll('tr');
+            existingEmptyRows.forEach(row => {
+                if (row.cells.length === 1 && row.cells[0].colSpan === 7) {
+                    row.remove();
+                }
+            });
+            
             const rows = document.querySelectorAll('#routes-table tbody tr');
+            let hasResults = false;
             
             rows.forEach(row => {
                 const name = row.cells[1].textContent.toLowerCase();
@@ -728,10 +1013,30 @@
                 
                 if (name.includes(searchTerm) || path.includes(searchTerm) || methods.includes(searchTerm)) {
                     row.style.display = '';
+                    hasResults = true;
                 } else {
                     row.style.display = 'none';
                 }
             });
+            
+            // 如果没有结果，显示提示信息
+            if (!hasResults) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                        <p>暂无查询记录</p>
+                        <p style="margin-top: 10px;">未找到与"${searchTerm}"相关的路由</p>
+                    </td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+        }
+        
+        function resetRouteSearch() {
+            // 清空搜索输入框
+            document.getElementById('route-search').value = '';
+            // 更新路由列表，确保显示所有路由
+            updateRoutesList();
         }
         
         // 请求历史管理
@@ -740,7 +1045,17 @@
             const path = document.getElementById('request-path').value.toLowerCase();
             const status = document.getElementById('request-status').value;
             
+            const tbody = document.querySelector('#requests-table tbody');
+            // 先清除所有现有的提示行
+            const existingEmptyRows = tbody.querySelectorAll('tr');
+            existingEmptyRows.forEach(row => {
+                if (row.cells.length === 1 && row.cells[0].colSpan === 7) {
+                    row.remove();
+                }
+            });
+            
             const rows = document.querySelectorAll('#requests-table tbody tr');
+            let hasResults = false;
             
             rows.forEach(row => {
                 const rowMethod = row.cells[1].textContent;
@@ -753,17 +1068,30 @@
                 
                 if (methodMatch && pathMatch && statusMatch) {
                     row.style.display = '';
+                    hasResults = true;
                 } else {
                     row.style.display = 'none';
                 }
             });
+            
+            // 如果没有结果，显示提示信息
+            if (!hasResults) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                        <p>暂无查询记录</p>
+                        <p style="margin-top: 10px;">未找到符合条件的请求历史</p>
+                    </td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
         }
         
         function clearFilters() {
             document.getElementById('request-method').value = '';
             document.getElementById('request-path').value = '';
             document.getElementById('request-status').value = '';
-            filterRequests();
+            updateRequestsList();
         }
         
         function clearRequests() {
@@ -776,13 +1104,59 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    alert('请求历史清空成功！');
-                    location.reload();
+                    showToast('请求历史清空成功！');
+                    updateRequestsList();
                 })
                 .catch(error => {
-                    alert('请求历史清空失败：' + error.message);
+                    showToast('请求历史清空失败：' + error.message, 'error');
                 });
             }
+        }
+        
+        // 更新请求历史列表
+        function updateRequestsList() {
+            fetch('/admin/requests', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(requests => {
+                const tbody = document.querySelector('#requests-table tbody');
+                tbody.innerHTML = '';
+                
+                if (requests.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无请求历史数据</p>
+                            <p style="margin-top: 10px;">当有请求访问API时，这里会显示请求历史</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                } else {
+                    // 显示请求历史列表
+                    requests.forEach(req => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${timestampToDateTime(req.timestamp)}</td>
+                            <td>${req.method}</td>
+                            <td>${req.path}</td>
+                            <td>${req.response_status}</td>
+                            <td>${req.response_time.toFixed(3)}s</td>
+                            <td>${req.client_ip}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="viewRequest('${req.id}')">查看</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            })
+            .catch(error => {
+                showToast('更新请求历史失败：' + error.message, 'error');
+            });
         }
         
         function viewRequest(requestId) {
@@ -1134,6 +1508,20 @@
         
         function updateRequestTrend(hours, interval) {
             console.log('开始更新请求趋势，hours:', hours, 'interval:', interval);
+            
+            // 检查 Chart 对象是否存在
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js 加载失败，无法初始化图表');
+                return;
+            }
+            
+            // 检查图表元素是否存在
+            const chartElement = document.getElementById('request-trend-chart');
+            if (!chartElement) {
+                console.error('请求趋势图表元素不存在');
+                return;
+            }
+            
             fetch(`/admin/analytics/request-trend?hours=${hours}&interval=${interval}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
@@ -1145,7 +1533,20 @@
             })
             .then(data => {
                 console.log('获取请求趋势数据：', data);
-                const ctx = document.getElementById('request-trend-chart').getContext('2d');
+                
+                // 再次检查 Chart 对象是否存在
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js 加载失败，无法初始化图表');
+                    return;
+                }
+                
+                // 再次检查图表元素是否存在
+                if (!document.getElementById('request-trend-chart')) {
+                    console.error('请求趋势图表元素不存在');
+                    return;
+                }
+                
+                const ctx = chartElement.getContext('2d');
                 console.log('获取图表上下文：', ctx);
                 
                 if (requestTrendChart) {
@@ -1291,6 +1692,20 @@
         
         function updateMethodStats(hours) {
             console.log('开始更新请求方法统计，hours:', hours);
+            
+            // 检查 Chart 对象是否存在
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js 加载失败，无法初始化图表');
+                return;
+            }
+            
+            // 检查图表元素是否存在
+            const chartElement = document.getElementById('method-stats-chart');
+            if (!chartElement) {
+                console.error('请求方法统计图表元素不存在');
+                return;
+            }
+            
             fetch(`/admin/analytics/methods?hours=${hours}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
@@ -1302,7 +1717,20 @@
             })
             .then(data => {
                 console.log('获取请求方法统计数据：', data);
-                const ctx = document.getElementById('method-stats-chart').getContext('2d');
+                
+                // 再次检查 Chart 对象是否存在
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js 加载失败，无法初始化图表');
+                    return;
+                }
+                
+                // 再次检查图表元素是否存在
+                if (!document.getElementById('method-stats-chart')) {
+                    console.error('请求方法统计图表元素不存在');
+                    return;
+                }
+                
+                const ctx = chartElement.getContext('2d');
                 console.log('获取图表上下文：', ctx);
                 
                 if (methodStatsChart) {
@@ -1408,7 +1836,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             initRoutesPagination();
             initRequestsPagination();
-            updateAnalytics();
+            
+            // 确保 Chart.js 加载完成后再初始化图表
+            if (typeof Chart !== 'undefined') {
+                updateAnalytics();
+            } else {
+                // 等待 Chart.js 加载完成
+                setTimeout(function() {
+                    if (typeof Chart !== 'undefined') {
+                        updateAnalytics();
+                    } else {
+                        console.error('Chart.js 加载失败，无法初始化图表');
+                        // 不替换图表元素，只在控制台输出错误
+                    }
+                }, 1000);
+            }
         });
     </script>
 </body>
