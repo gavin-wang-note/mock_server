@@ -347,13 +347,19 @@
         <div class="tab-content" id="routes-tab" style="display: block;">
             <h2>路由管理</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
+                    <button class="btn btn-secondary" onclick="importRoutes()">导入路由</button>
+                </div>
                 <div>
                     <input type="text" id="route-search" placeholder="搜索路由..." style="padding: 8px; width: 200px;">
                     <button class="btn btn-secondary" onclick="searchRoutes()">搜索</button>
                     <button class="btn btn-primary" onclick="resetRouteSearch()">重置</button>
                 </div>
             </div>
+            
+            <!-- 导入路由文件输入 -->
+            <input type="file" id="route-import-file" accept=".json" style="display: none;" onchange="handleRouteFileSelect(this)">
             
             <table id="routes-table">
                 <thead>
@@ -1037,6 +1043,115 @@
             document.getElementById('route-search').value = '';
             // 更新路由列表，确保显示所有路由
             updateRoutesList();
+        }
+        
+        // 导入路由功能
+        function importRoutes() {
+            // 打开文件选择对话框
+            document.getElementById('route-import-file').click();
+        }
+        
+        function handleRouteFileSelect(input) {
+            const file = input.files[0];
+            if (!file) {
+                return;
+            }
+            
+            // 检查文件类型
+            if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+                showToast('请选择JSON格式的文件', 'error');
+                input.value = ''; // 清空文件输入
+                return;
+            }
+            
+            // 读取文件内容
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // 解析JSON
+                    const routesData = JSON.parse(e.target.result);
+                    
+                    // 检查解析结果是否为数组
+                    if (!Array.isArray(routesData)) {
+                        showToast('JSON文件格式错误，应为路由数组', 'error');
+                        input.value = '';
+                        return;
+                    }
+                    
+                    // 确认导入（直接覆盖）
+                    if (confirm('确定要导入路由吗？这将直接覆盖现有所有路由。')) {
+                        // 导入路由
+                        importRoutesData(routesData);
+                    }
+                } catch (error) {
+                    showToast('JSON格式错误：' + error.message, 'error');
+                } finally {
+                    input.value = ''; // 清空文件输入
+                }
+            };
+            reader.onerror = function() {
+                showToast('文件读取失败', 'error');
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+        
+        function importRoutesData(routesData) {
+            // 首先获取所有现有路由
+            fetch('/admin/routes', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(existingRoutes => {
+                // 批量删除现有路由
+                const deletePromises = existingRoutes.map(route => {
+                    return fetch(`/admin/routes/${route.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer mock_server_admin_token'
+                        }
+                    });
+                });
+                
+                return Promise.all(deletePromises);
+            })
+            .then(() => {
+                // 批量添加新路由
+                const addPromises = routesData.map(routeData => {
+                    // 确保路由数据格式正确
+                    const route = {
+                        name: routeData.name,
+                        match_rule: routeData.match_rule,
+                        response: routeData.response,
+                        enabled: routeData.enabled !== false,
+                        validator: routeData.validator,
+                        tags: routeData.tags
+                    };
+                    
+                    return fetch('/admin/routes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer mock_server_admin_token'
+                        },
+                        body: JSON.stringify(route)
+                    });
+                });
+                
+                return Promise.all(addPromises);
+            })
+            .then(() => {
+                // 更新路由列表
+                updateRoutesList();
+                // 显示成功提示
+                showToast(`成功导入 ${routesData.length} 条路由`, 'success');
+            })
+            .catch(error => {
+                // 显示错误提示
+                showToast('路由导入失败：' + error.message, 'error');
+            });
         }
         
         // 请求历史管理
