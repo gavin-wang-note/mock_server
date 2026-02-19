@@ -4,8 +4,8 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mock Server 管理界面</title>
-        <!-- Chart.js CDN 链接 -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+        <!-- Chart.js 本地链接 -->
+        <script src="/static/Chart.js"></script>
         <!-- 加载超时处理 -->
         <script>
             // 检查 Chart.js 是否在 5 秒内加载完成
@@ -147,6 +147,24 @@
         
         .btn-secondary:hover {
             background-color: #5a6268;
+        }
+        
+        .btn-success {
+            background-color: #4caf50;
+            color: #fff;
+        }
+        
+        .btn-success:hover {
+            background-color: #43a047;
+        }
+        
+        .btn-warning {
+            background-color: #ffb74d;
+            color: #fff;
+        }
+        
+        .btn-warning:hover {
+            background-color: #ffa726;
         }
         
         table {
@@ -388,6 +406,7 @@
                         <td>{{ route.created_at | int | timestamp }}</td>
                         <td>
                             <button class="btn btn-secondary" onclick="editRoute('{{ route.id }}')">编辑</button>
+                            <button class="btn {% if route.enabled %}btn-warning{% else %}btn-success{% endif %}" onclick="toggleRouteStatus('{{ route.id }}', {% if route.enabled %}false{% else %}true{% endif %})">{{ '禁用' if route.enabled else '启用' }}</button>
                             <button class="btn btn-danger" onclick="deleteRoute('{{ route.id }}')">删除</button>
                         </td>
                     </tr>
@@ -796,6 +815,7 @@
                             <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
                             <td>
                                 <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                                <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
                                 <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
                             </td>
                         `;
@@ -995,6 +1015,26 @@
                     showToast('路由删除失败：' + error.message, 'error');
                 });
             }
+        }
+        
+        function toggleRouteStatus(routeId, enabled) {
+            // 发送请求更新路由状态
+            fetch(`/admin/routes/${routeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enabled: enabled })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(`路由已${enabled ? '启用' : '禁用'}！`);
+                updateRoutesList();
+            })
+            .catch(error => {
+                showToast('更新路由状态失败：' + error.message, 'error');
+            });
         }
         
         function searchRoutes() {
@@ -1953,19 +1993,18 @@
             initRequestsPagination();
             
             // 确保 Chart.js 加载完成后再初始化图表
-            if (typeof Chart !== 'undefined') {
-                updateAnalytics();
-            } else {
-                // 等待 Chart.js 加载完成
-                setTimeout(function() {
-                    if (typeof Chart !== 'undefined') {
-                        updateAnalytics();
-                    } else {
-                        console.error('Chart.js 加载失败，无法初始化图表');
-                        // 不替换图表元素，只在控制台输出错误
-                    }
-                }, 1000);
+            function checkChartLoaded() {
+                if (typeof Chart !== 'undefined') {
+                    console.log('Chart.js 加载完成，初始化图表');
+                    updateAnalytics();
+                } else {
+                    console.log('Chart.js 尚未加载，等待...');
+                    // 等待 Chart.js 加载完成，最多尝试 5 次
+                    setTimeout(checkChartLoaded, 1000);
+                }
             }
+            
+            checkChartLoaded();
         });
     </script>
 </body>
