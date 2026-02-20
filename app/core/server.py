@@ -7,8 +7,8 @@ from app.core.config import config
 # 创建全局应用实例
 app = FastAPI(
     title="Mock Server",
-    description="企业级Python Mock Server",
-    version="1.0.0"
+    description="企业级 Python Mock Server",
+    version="V1.0.0"
 )
 
 # 挂载静态文件目录
@@ -39,33 +39,67 @@ async def root():
                 font-family: Arial, sans-serif;
                 max-width: 800px;
                 margin: 0 auto;
-                padding: 20px;
+                padding: 40px 20px;
                 text-align: center;
+                background-color: #f8f9fa;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
             }
             h1 {
-                color: #333;
+                color: #2c3e50;
+                font-size: 2.5em;
+                margin-bottom: 10px;
+            }
+            p {
+                color: #6c757d;
+                font-size: 1.2em;
+                margin-bottom: 30px;
             }
             .links {
                 margin-top: 30px;
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+                justify-content: center;
             }
             .link-item {
                 display: inline-block;
                 margin: 10px;
-                padding: 10px 20px;
-                background-color: #f0f0f0;
-                border-radius: 5px;
+                padding: 12px 24px;
+                background-color: #4caf50;
+                border-radius: 8px;
                 text-decoration: none;
-                color: #333;
+                color: white;
                 font-weight: bold;
+                font-size: 1.1em;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             }
             .link-item:hover {
-                background-color: #e0e0e0;
+                background-color: #45a049;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+            .link-item:nth-child(2) {
+                background-color: #2196f3;
+            }
+            .link-item:nth-child(2):hover {
+                background-color: #1976d2;
+            }
+            .link-item:nth-child(3) {
+                background-color: #ff9800;
+            }
+            .link-item:nth-child(3):hover {
+                background-color: #f57c00;
             }
         </style>
     </head>
     <body>
         <h1>Mock Server</h1>
-        <p>企业级Python Mock Server</p>
+        <p>企业级 Python Mock Server</p>
         <div class="links">
             <a href="/admin" class="link-item">管理界面</a>
             <a href="/health" class="link-item">健康检查</a>

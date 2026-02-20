@@ -18,12 +18,17 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("", response_class=HTMLResponse)
 async def admin_root(request: Request):
     """管理界面根路径"""
+    # 获取最近24小时的请求历史，限制为100条
+    start_time = time.time() - (24 * 3600)
+    end_time = time.time()
+    requests = get_request_history(limit=100, start_time=start_time, end_time=end_time)
+    
     return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
             "routes": get_all_routes(),
-            "requests": get_request_history()[-50:],
+            "requests": requests[:50],
             "config": config
         }
     )
@@ -74,8 +79,10 @@ async def admin_dashboard(request: Request):
     # 获取所有路由
     routes = get_all_routes()
     
-    # 获取请求历史
-    requests = get_request_history()[-50:]  # 最近50条
+    # 获取最近24小时的请求历史，限制为100条
+    start_time = time.time() - (24 * 3600)
+    end_time = time.time()
+    requests = get_request_history(limit=100, start_time=start_time, end_time=end_time)
     
     # 渲染模板
     return templates.TemplateResponse(
@@ -83,7 +90,7 @@ async def admin_dashboard(request: Request):
         {
             "request": request,
             "routes": routes,
-            "requests": requests,
+            "requests": requests[:50],
             "config": config
         }
     )
@@ -207,10 +214,19 @@ async def get_requests(
     method: Optional[str] = None,
     path: Optional[str] = None,
     status_code: Optional[int] = None,
+    hours: Optional[int] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """获取请求历史"""
-    requests = get_request_history()
+    # 计算时间范围
+    start_time = None
+    end_time = None
+    if hours:
+        start_time = time.time() - (hours * 3600)
+        end_time = time.time()
+    
+    # 获取请求历史，传入时间范围过滤
+    requests = get_request_history(limit=limit * 2, offset=offset, start_time=start_time, end_time=end_time)
     
     # 应用过滤
     if method:
@@ -350,12 +366,17 @@ async def get_envs(current_user: dict = Depends(get_current_user)):
 @router.get("/ui", response_class=HTMLResponse)
 async def admin_ui(request: Request):
     """管理界面"""
+    # 获取最近24小时的请求历史，限制为100条
+    start_time = time.time() - (24 * 3600)
+    end_time = time.time()
+    requests = get_request_history(limit=100, start_time=start_time, end_time=end_time)
+    
     return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
             "routes": get_all_routes(),
-            "requests": get_request_history()[-50:],
+            "requests": requests[:50],
             "config": config
         }
     )

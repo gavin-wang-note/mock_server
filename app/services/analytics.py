@@ -26,10 +26,10 @@ class AnalyticsManager:
         end_time = time.time()
         start_time = end_time - (hours * 3600)
         
-        # 获取请求记录
-        requests = db_storage.get_requests(limit=10000)
+        # 获取请求记录，直接传入时间范围过滤
+        requests = db_storage.get_requests(limit=10000, start_time=start_time, end_time=end_time)
         
-        # 过滤时间范围内的请求
+        # 过滤时间范围内的请求（双重保险）
         filtered_requests = [req for req in requests if req.timestamp >= start_time and req.timestamp <= end_time]
         
         # 按分钟分组所有请求，确保每个请求都有自己的时间点
@@ -146,11 +146,12 @@ class AnalyticsManager:
         """
         # 计算开始时间
         start_time = time.time() - (hours * 3600)
+        end_time = time.time()
         
-        # 获取请求记录
-        requests = db_storage.get_requests(limit=10000)
+        # 获取请求记录，直接传入时间范围过滤
+        requests = db_storage.get_requests(limit=10000, start_time=start_time, end_time=end_time)
         
-        # 过滤时间范围内的请求
+        # 过滤时间范围内的请求（双重保险）
         filtered_requests = [req for req in requests if req.timestamp >= start_time]
         
         if not filtered_requests:
@@ -210,11 +211,12 @@ class AnalyticsManager:
         """
         # 计算开始时间
         start_time = time.time() - (hours * 3600)
+        end_time = time.time()
         
-        # 获取请求记录
-        requests = db_storage.get_requests(limit=10000)
+        # 获取请求记录，直接传入时间范围过滤
+        requests = db_storage.get_requests(limit=10000, start_time=start_time, end_time=end_time)
         
-        # 过滤时间范围内的请求
+        # 过滤时间范围内的请求（双重保险）
         filtered_requests = [req for req in requests if req.timestamp >= start_time]
         
         # 统计状态码
@@ -265,11 +267,12 @@ class AnalyticsManager:
         """
         # 计算开始时间
         start_time = time.time() - (hours * 3600)
+        end_time = time.time()
         
-        # 获取请求记录
-        requests = db_storage.get_requests(limit=10000)
+        # 获取请求记录，直接传入时间范围过滤
+        requests = db_storage.get_requests(limit=10000, start_time=start_time, end_time=end_time)
         
-        # 过滤时间范围内的请求
+        # 过滤时间范围内的请求（双重保险）
         filtered_requests = [req for req in requests if req.timestamp >= start_time]
         
         # 统计请求方法
@@ -299,11 +302,12 @@ class AnalyticsManager:
         """
         # 计算开始时间
         start_time = time.time() - (hours * 3600)
+        end_time = time.time()
         
-        # 获取请求记录
-        requests = db_storage.get_requests(limit=10000)
+        # 获取请求记录，直接传入时间范围过滤
+        requests = db_storage.get_requests(limit=10000, start_time=start_time, end_time=end_time)
         
-        # 过滤时间范围内的请求
+        # 过滤时间范围内的请求（双重保险）
         filtered_requests = [req for req in requests if req.timestamp >= start_time]
         
         # 统计路径

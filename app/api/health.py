@@ -45,7 +45,7 @@ async def health_check():
     # 构建健康检查响应
     response = HealthResponse(
         status="healthy",
-        version="1.0.0",
+        version="V1.0.0",
         uptime=uptime,
         stats=stats
     )
@@ -95,8 +95,8 @@ async def get_service_info():
     """获取服务信息"""
     info = {
         "name": "Mock Server",
-        "version": "1.0.0",
-        "description": "企业级Python Mock Server",
+        "version": "V1.0.0",
+        "description": "企业级 Python Mock Server",
         "features": [
             "Dynamic routing",
             "RESTful API support",

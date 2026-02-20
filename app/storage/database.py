@@ -130,12 +130,14 @@ class DatabaseStorage:
             )
             conn.commit()
     
-    def get_requests(self, limit: int = 1000, offset: int = 0) -> List[RequestModel]:
+    def get_requests(self, limit: int = 1000, offset: int = 0, start_time: Optional[float] = None, end_time: Optional[float] = None) -> List[RequestModel]:
         """获取请求记录
         
         Args:
             limit: 返回记录数量限制
             offset: 偏移量
+            start_time: 开始时间戳
+            end_time: 结束时间戳
             
         Returns:
             请求记录列表
@@ -143,14 +145,28 @@ class DatabaseStorage:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute(
-                '''
-                SELECT * FROM requests 
-                ORDER BY timestamp DESC 
-                LIMIT ? OFFSET ?
-                ''',
-                (limit, offset)
-            )
+            
+            # 构建查询语句
+            query = 'SELECT * FROM requests '
+            params = []
+            
+            # 添加时间范围过滤
+            if start_time is not None or end_time is not None:
+                query += 'WHERE '
+                if start_time is not None:
+                    query += 'timestamp >= ? '
+                    params.append(start_time)
+                if start_time is not None and end_time is not None:
+                    query += 'AND '
+                if end_time is not None:
+                    query += 'timestamp <= ? '
+                    params.append(end_time)
+            
+            # 添加排序和分页
+            query += 'ORDER BY timestamp DESC LIMIT ? OFFSET ?'
+            params.extend([limit, offset])
+            
+            cursor.execute(query, params)
             rows = cursor.fetchall()
             
             requests = []

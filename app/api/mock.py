@@ -291,18 +291,20 @@ def get_all_routes():
     return mock_router.get_all_routes()
 
 
-def get_request_history(limit: int = 1000, offset: int = 0):
+def get_request_history(limit: int = 1000, offset: int = 0, start_time: Optional[float] = None, end_time: Optional[float] = None):
     """获取请求历史
     
     Args:
         limit: 返回记录数量限制
         offset: 偏移量
+        start_time: 开始时间戳
+        end_time: 结束时间戳
         
     Returns:
         请求历史列表
     """
-    # 从数据库中获取请求历史
-    return db_storage.get_requests(limit=limit, offset=offset)
+    # 从数据库中获取请求历史，传入时间范围过滤
+    return db_storage.get_requests(limit=limit, offset=offset, start_time=start_time, end_time=end_time)
 
 
 def get_response_history():

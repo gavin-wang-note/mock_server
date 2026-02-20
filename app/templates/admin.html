@@ -349,7 +349,7 @@
     <div class="container">
         <header>
             <h1>Mock Server 管理界面</h1>
-            <p>企业级Python Mock Server - 版本 1.0.0</p>
+            <p>企业级 Python Mock Server - 版本 V1.0.0</p>
         </header>
         
         <nav>
@@ -2006,6 +2006,16 @@
             
             checkChartLoaded();
         });
+    </script>
+    
+    <!-- 版权信息 -->
+    <footer style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-top: 1px solid #dee2e6; text-align: center;">
+        <p>&copy; <span id="current-year"></span>  Mock Server. Gavin Wang All rights reserved.</p>
+    </footer>
+    
+    <script>
+        // 设置当前年份
+        document.getElementById('current-year').textContent = new Date().getFullYear();
     </script>
 </body>
 </html>
