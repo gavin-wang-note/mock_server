@@ -39,61 +39,39 @@ async def root():
                 font-family: Arial, sans-serif;
                 max-width: 800px;
                 margin: 0 auto;
-                padding: 40px 20px;
+                padding: 20px;
                 text-align: center;
-                background-color: #f8f9fa;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
             }
             h1 {
-                color: #2c3e50;
-                font-size: 2.5em;
-                margin-bottom: 10px;
-            }
-            p {
-                color: #6c757d;
-                font-size: 1.2em;
-                margin-bottom: 30px;
+                color: #333;
             }
             .links {
                 margin-top: 30px;
-                display: flex;
-                gap: 15px;
-                flex-wrap: wrap;
-                justify-content: center;
             }
             .link-item {
                 display: inline-block;
                 margin: 10px;
                 padding: 12px 24px;
-                background-color: #4caf50;
                 border-radius: 8px;
                 text-decoration: none;
                 color: white;
                 font-weight: bold;
-                font-size: 1.1em;
                 transition: all 0.3s ease;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
-            .link-item:hover {
-                background-color: #45a049;
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            .link-item:nth-child(1) {
+                background-color: #4a90e2;
             }
             .link-item:nth-child(2) {
-                background-color: #2196f3;
-            }
-            .link-item:nth-child(2):hover {
-                background-color: #1976d2;
+                background-color: #50e3c2;
             }
             .link-item:nth-child(3) {
-                background-color: #ff9800;
+                background-color: #9013fe;
             }
-            .link-item:nth-child(3):hover {
-                background-color: #f57c00;
+            .link-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                opacity: 0.9;
             }
         </style>
     </head>

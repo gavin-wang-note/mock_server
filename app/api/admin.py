@@ -12,10 +12,10 @@ from app.core.security import authenticate_user, create_access_token
 from app.core.config import config
 
 # 创建路由处理实例
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 # 根路径处理
-@router.get("", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse)
 async def admin_root(request: Request):
     """管理界面根路径"""
     # 获取最近24小时的请求历史，限制为100条
@@ -73,7 +73,7 @@ async def get_current_user(request: Request):
 
 
 # 管理界面
-@router.get("/")
+@router.get("/admin/")
 async def admin_dashboard(request: Request):
     """管理界面"""
     # 获取所有路由
@@ -115,13 +115,13 @@ async def login(username: str, password: str):
 
 
 # 路由管理
-@router.get("/routes", response_model=List[Route])
+@router.get("/admin/routes", response_model=List[Route])
 async def get_routes(current_user: dict = Depends(get_current_user)):
     """获取所有路由"""
     return get_all_routes()
 
 
-@router.post("/routes", response_model=Route)
+@router.post("/admin/routes", response_model=Route)
 async def create_route(route_create: RouteCreate, current_user: dict = Depends(get_current_user)):
     """创建新路由"""
     # 生成路由ID
@@ -146,7 +146,7 @@ async def create_route(route_create: RouteCreate, current_user: dict = Depends(g
     return route
 
 
-@router.get("/routes/{route_id}", response_model=Route)
+@router.get("/admin/routes/{route_id}", response_model=Route)
 async def get_route(route_id: str, current_user: dict = Depends(get_current_user)):
     """获取指定路由"""
     routes = get_all_routes()
@@ -157,7 +157,7 @@ async def get_route(route_id: str, current_user: dict = Depends(get_current_user
     raise HTTPException(status_code=404, detail="路由不存在")
 
 
-@router.put("/routes/{route_id}", response_model=Route)
+@router.put("/admin/routes/{route_id}", response_model=Route)
 async def update_route_endpoint(route_id: str, route_update: RouteUpdate, current_user: dict = Depends(get_current_user)):
     """更新路由"""
     # 获取现有路由
@@ -190,7 +190,7 @@ async def update_route_endpoint(route_id: str, route_update: RouteUpdate, curren
     return updated_route
 
 
-@router.delete("/routes/{route_id}")
+@router.delete("/admin/routes/{route_id}")
 async def delete_route(route_id: str, current_user: dict = Depends(get_current_user)):
     """删除路由"""
     # 检查路由是否存在
@@ -363,7 +363,7 @@ async def get_envs(current_user: dict = Depends(get_current_user)):
 
 
 # 管理界面
-@router.get("/ui", response_class=HTMLResponse)
+@router.get("/admin/ui", response_class=HTMLResponse)
 async def admin_ui(request: Request):
     """管理界面"""
     # 获取最近24小时的请求历史，限制为100条
@@ -463,7 +463,7 @@ async def run_auto_cleanup(current_user: dict = Depends(get_current_user)):
 
 
 # 数据统计和分析
-@router.get("/analytics/request-trend")
+@router.get("/admin/analytics/request-trend")
 async def get_request_trend(hours: int = 24, interval: str = 'hour', current_user: dict = Depends(get_current_user)):
     """获取请求趋势"""
     from app.services.analytics import analytics_manager
@@ -472,7 +472,7 @@ async def get_request_trend(hours: int = 24, interval: str = 'hour', current_use
     return trend
 
 
-@router.get("/analytics/response-time")
+@router.get("/admin/analytics/response-time")
 async def get_response_time_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
     """获取响应时间统计"""
     from app.services.analytics import analytics_manager
@@ -481,7 +481,7 @@ async def get_response_time_stats(hours: int = 24, current_user: dict = Depends(
     return stats
 
 
-@router.get("/analytics/status-codes")
+@router.get("/admin/analytics/status-codes")
 async def get_status_code_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
     """获取状态码统计"""
     from app.services.analytics import analytics_manager
@@ -490,7 +490,7 @@ async def get_status_code_stats(hours: int = 24, current_user: dict = Depends(ge
     return stats
 
 
-@router.get("/analytics/methods")
+@router.get("/admin/analytics/methods")
 async def get_method_stats(hours: int = 24, current_user: dict = Depends(get_current_user)):
     """获取请求方法统计"""
     from app.services.analytics import analytics_manager
@@ -499,7 +499,7 @@ async def get_method_stats(hours: int = 24, current_user: dict = Depends(get_cur
     return stats
 
 
-@router.get("/analytics/paths")
+@router.get("/admin/analytics/paths")
 async def get_path_stats(hours: int = 24, limit: int = 10, current_user: dict = Depends(get_current_user)):
     """获取路径统计"""
     from app.services.analytics import analytics_manager
@@ -508,10 +508,99 @@ async def get_path_stats(hours: int = 24, limit: int = 10, current_user: dict = 
     return stats
 
 
-@router.get("/analytics/summary")
+@router.get("/admin/analytics/summary")
 async def get_summary_stats(current_user: dict = Depends(get_current_user)):
     """获取汇总统计"""
     from app.services.analytics import analytics_manager
     
     stats = analytics_manager.get_summary_stats()
     return stats
+
+
+# 测试路由
+@router.get("/admin/test")
+async def test_route():
+    """测试路由"""
+    return {"message": "测试成功"}
+
+# 导出路由
+@router.get("/admin/routes-export")
+async def export_routes():
+    """导出所有路由为 JSON 文件"""
+    from fastapi.responses import Response
+    import json
+    import time
+    
+    # 获取所有路由
+    routes = get_all_routes()
+    
+    # 转换为可序列化的格式，与导入格式兼容
+    routes_data = []
+    for route in routes:
+        # 处理响应对象，确保格式与导入兼容
+        response_data = {}
+        if hasattr(route.response, 'model_dump'):
+            raw_response = route.response.model_dump()
+            # 转换字段名：status_code -> status
+            if 'status_code' in raw_response:
+                response_data['status'] = raw_response['status_code']
+            elif 'status' in raw_response:
+                response_data['status'] = raw_response['status']
+            # 复制内容字段
+            if 'content' in raw_response:
+                response_data['content'] = raw_response['content']
+            # 复制延迟字段
+            if 'delay' in raw_response:
+                response_data['delay'] = raw_response['delay']
+            # 复制头部字段
+            if 'headers' in raw_response and raw_response['headers']:
+                response_data['headers'] = raw_response['headers']
+        else:
+            # 直接使用原始响应数据
+            response_data = route.response
+        
+        # 处理匹配规则
+        match_rule_data = {}
+        if hasattr(route.match_rule, 'model_dump'):
+            raw_match_rule = route.match_rule.model_dump()
+            # 只保留必要的字段
+            if 'path' in raw_match_rule:
+                match_rule_data['path'] = raw_match_rule['path']
+            if 'methods' in raw_match_rule:
+                match_rule_data['methods'] = raw_match_rule['methods']
+        else:
+            match_rule_data = route.match_rule
+        
+        # 构建路由对象，与 sample-routes.json 格式一致
+        route_dict = {
+            "name": route.name,
+            "match_rule": match_rule_data,
+            "response": response_data,
+            "enabled": route.enabled,
+            "tags": route.tags if route.tags else []
+        }
+        
+        # 只在有值时添加 validator 字段
+        if route.validator:
+            if hasattr(route.validator, 'model_dump'):
+                route_dict['validator'] = route.validator.model_dump()
+            else:
+                route_dict['validator'] = route.validator
+        
+        routes_data.append(route_dict)
+    
+    # 生成 JSON 字符串
+    json_str = json.dumps(routes_data, indent=2, ensure_ascii=False)
+    
+    # 生成文件名
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"routes_export_{timestamp}.json"
+    
+    # 返回 JSON 文件
+    return Response(
+        content=json_str,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )

@@ -9,6 +9,7 @@ from app.services.router import Router
 from app.services.validator import Validator
 from app.services.templater import Templater
 from app.core.config import config
+from app.core.logger import logger
 from app.models.request import Request as RequestModel
 from app.models.response import Response as ResponseModel
 
@@ -29,6 +30,16 @@ response_history = []
 
 # 服务启动时间
 server_start_time = time.time()
+
+# 从数据库加载路由
+def load_routes_from_db():
+    """从数据库加载路由"""
+    routes = db_storage.get_routes()
+    for route in routes:
+        mock_router.add_route(route)
+
+# 服务启动时加载路由
+load_routes_from_db()
 
 
 @router.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
@@ -61,6 +72,9 @@ async def mock_handler(request: Request, path: str):
     # 获取客户端IP
     client_ip = request.client.host if request.client else "unknown"
     
+    # 记录请求开始
+    logger.info(f"Request started [{request_id}]: {method} {full_path} from {client_ip}")
+    
     # 构建请求上下文
     context = {
         "request": {
@@ -82,11 +96,14 @@ async def mock_handler(request: Request, path: str):
         context["query"] = query_params
         context["body"] = body or {}
         
+        logger.info(f"Route matched [{request_id}]: {route.name} ({route.id})")
+        
         # 验证请求
         if route.validator:
             is_valid, error_msg = validator.validate_request(route.validator, body, headers)
             if not is_valid:
                 # 生成验证错误响应
+                logger.warning(f"Request validation failed [{request_id}]: {error_msg}")
                 if route.validator.error_response:
                     response = await generate_response(route.validator.error_response, context)
                 else:
@@ -101,6 +118,7 @@ async def mock_handler(request: Request, path: str):
                     client_ip, route.id, 400, response
                 )
                 
+                logger.info(f"Request completed [{request_id}]: 400 Bad Request")
                 return response
         
         # 生成响应
@@ -112,11 +130,14 @@ async def mock_handler(request: Request, path: str):
             client_ip, route.id, response.status_code, response
         )
         
+        logger.info(f"Request completed [{request_id}]: {response.status_code}")
         return response
     else:
         # 处理未匹配的请求
+        logger.info(f"No route matched [{request_id}]: {method} {full_path}")
         if config.proxy.enable and config.proxy.target_url:
             # 代理模式：转发到真实后端
+            logger.info(f"Forwarding to proxy [{request_id}]: {config.proxy.target_url}")
             response = await proxy_request(method, full_path, headers, query_params, body)
             
             # 记录请求和响应
@@ -125,6 +146,7 @@ async def mock_handler(request: Request, path: str):
                 client_ip, None, response.status_code, response
             )
             
+            logger.info(f"Proxy request completed [{request_id}]: {response.status_code}")
             return response
         else:
             # 返回404
@@ -139,6 +161,7 @@ async def mock_handler(request: Request, path: str):
                 client_ip, None, 404, response
             )
             
+            logger.info(f"Request completed [{request_id}]: 404 Not Found")
             return response
 
 
@@ -234,6 +257,8 @@ async def proxy_request(method: str, path: str, headers: dict, query_params: dic
     # 移除host头部，由httpx自动设置
     headers.pop('host', None)
     
+    logger.info(f"Proxying request: {method} {target_url}")
+    
     # 发送请求
     async with httpx.AsyncClient() as client:
         try:
@@ -252,10 +277,13 @@ async def proxy_request(method: str, path: str, headers: dict, query_params: dic
             elif method == "OPTIONS":
                 response = await client.options(target_url, headers=headers, params=query_params)
             else:
+                logger.warning(f"Proxying unsupported method: {method}")
                 return JSONResponse(
                     status_code=405,
                     content={"error": "Method not allowed"}
                 )
+            
+            logger.info(f"Proxy response received: {response.status_code} from {target_url}")
             
             # 构建响应
             return Response(
@@ -264,6 +292,7 @@ async def proxy_request(method: str, path: str, headers: dict, query_params: dic
                 headers=dict(response.headers)
             )
         except Exception as e:
+            logger.error(f"Proxy error: {str(e)} for {target_url}")
             return JSONResponse(
                 status_code=502,
                 content={"error": f"Proxy error: {str(e)}"}
@@ -274,16 +303,20 @@ async def proxy_request(method: str, path: str, headers: dict, query_params: dic
 def add_route(route):
     """添加路由"""
     mock_router.add_route(route)
+    db_storage.save_route(route)
 
 
 def remove_route(route_id):
     """移除路由"""
     mock_router.remove_route(route_id)
+    # 从数据库中删除路由
+    db_storage.delete_route(route_id)
 
 
 def update_route(route):
     """更新路由"""
     mock_router.update_route(route)
+    db_storage.save_route(route)
 
 
 def get_all_routes():

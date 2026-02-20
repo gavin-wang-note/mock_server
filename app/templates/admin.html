@@ -368,6 +368,8 @@
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
                     <button class="btn btn-secondary" onclick="importRoutes()">导入路由</button>
+                    <button class="btn btn-success" onclick="exportRoutes()">导出路由</button>
+                    <button class="btn btn-danger" id="batch-delete-btn" onclick="batchDeleteRoutes()" disabled>批量删除</button>
                 </div>
                 <div>
                     <input type="text" id="route-search" placeholder="搜索路由..." style="padding: 8px; width: 200px;">
@@ -382,6 +384,7 @@
             <table id="routes-table">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="select-all-routes" onchange="toggleSelectAllRoutes(this)"></th>
                         <th>ID</th>
                         <th>名称</th>
                         <th>路径</th>
@@ -394,6 +397,7 @@
                 <tbody>
                     {% for route in routes %}
                     <tr>
+                        <td><input type="checkbox" class="route-checkbox" data-id="{{ route.id }}" onchange="updateBatchDeleteButton()"></td>
                         <td>{{ route.id[:8] }}...</td>
                         <td>{{ route.name }}</td>
                         <td>{{ route.match_rule.path }}</td>
@@ -788,21 +792,31 @@
                 const tbody = document.querySelector('#routes-table tbody');
                 tbody.innerHTML = '';
                 
-                if (routes.length === 0) {
+                // 确保 routes 是一个数组
+                const routesArray = Array.isArray(routes) ? routes : [];
+                
+                if (routesArray.length === 0) {
                     // 显示空数据提示
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
                             <p>暂无路由数据</p>
                             <p style="margin-top: 10px;">点击"创建新路由"按钮添加第一条路由</p>
                         </td>
                     `;
                     tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    routesTotalItems = 0;
+                    routesTotalPages = 1;
+                    routesCurrentPage = 1;
+                    updateRoutesPaginationUI();
                 } else {
                     // 显示路由列表
-                    routes.forEach(route => {
+                    routesArray.forEach(route => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
+                            <td><input type="checkbox" class="route-checkbox" data-id="${route.id}" onchange="updateBatchDeleteButton()"></td>
                             <td>${route.id.substring(0, 8)}...</td>
                             <td>${route.name}</td>
                             <td>${route.match_rule ? route.match_rule.path : ''}</td>
@@ -821,6 +835,14 @@
                         `;
                         tbody.appendChild(row);
                     });
+                    
+                    // 更新分页信息
+                    routesTotalItems = routesArray.length;
+                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
+                    if (routesCurrentPage > routesTotalPages) {
+                        routesCurrentPage = Math.max(1, routesTotalPages);
+                    }
+                    updateRoutesPaginationUI();
                 }
             })
             .catch(error => {
@@ -1017,6 +1039,56 @@
             }
         }
         
+        function toggleSelectAllRoutes(checkbox) {
+            const checkboxes = document.querySelectorAll('.route-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateBatchDeleteButton();
+        }
+        
+        function updateBatchDeleteButton() {
+            const checkedBoxes = document.querySelectorAll('.route-checkbox:checked');
+            const batchDeleteBtn = document.getElementById('batch-delete-btn');
+            batchDeleteBtn.disabled = checkedBoxes.length === 0;
+        }
+        
+        function batchDeleteRoutes() {
+            const checkedBoxes = document.querySelectorAll('.route-checkbox:checked');
+            const routeIds = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+            
+            if (routeIds.length === 0) {
+                showToast('请选择要删除的路由', 'warning');
+                return;
+            }
+            
+            if (confirm(`确定要删除选中的 ${routeIds.length} 个路由吗？`)) {
+                // 批量删除路由
+                const deletePromises = routeIds.map(routeId => {
+                    return fetch(`/admin/routes/${routeId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer mock_server_admin_token'
+                        }
+                    }).then(response => {
+                        if (!response.ok) {
+                            throw new Error('删除失败');
+                        }
+                        return response.json();
+                    });
+                });
+                
+                Promise.all(deletePromises)
+                .then(results => {
+                    showToast(`成功删除 ${results.length} 个路由！`);
+                    updateRoutesList();
+                })
+                .catch(error => {
+                    showToast('批量删除失败：' + error.message, 'error');
+                });
+            }
+        }
+        
         function toggleRouteStatus(routeId, enabled) {
             // 发送请求更新路由状态
             fetch(`/admin/routes/${routeId}`, {
@@ -1085,6 +1157,49 @@
             updateRoutesList();
         }
         
+        // 导出路由功能
+        function exportRoutes() {
+            // 创建一个带有认证头的请求
+            fetch('/admin/routes-export', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                // 从响应头获取文件名
+                const contentDisposition = response.headers.get('content-disposition');
+                let fileName = 'routes_export.json';
+                if (contentDisposition) {
+                    const matches = /filename="([^"]+)"/.exec(contentDisposition);
+                    if (matches && matches[1]) {
+                        fileName = matches[1];
+                    }
+                }
+                return response.blob().then(blob => ({
+                    blob,
+                    fileName
+                }));
+            })
+            .then(data => {
+                // 创建一个下载链接
+                const url = window.URL.createObjectURL(data.blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = data.fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showToast('路由导出成功！');
+            })
+            .catch(error => {
+                showToast('路由导出失败：' + error.message, 'error');
+            });
+        }
+        
         // 导入路由功能
         function importRoutes() {
             // 打开文件选择对话框
@@ -1145,8 +1260,10 @@
             })
             .then(response => response.json())
             .then(existingRoutes => {
+                // 确保 existingRoutes 是一个数组
+                const routesToDelete = Array.isArray(existingRoutes) ? existingRoutes : [];
                 // 批量删除现有路由
-                const deletePromises = existingRoutes.map(route => {
+                const deletePromises = routesToDelete.map(route => {
                     return fetch(`/admin/routes/${route.id}`, {
                         method: 'DELETE',
                         headers: {

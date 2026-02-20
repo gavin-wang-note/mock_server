@@ -59,6 +59,21 @@ class DatabaseStorage:
                 )
             ''')
             
+            # 创建路由表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS routes (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    enabled INTEGER,
+                    match_rule TEXT,
+                    response TEXT,
+                    validator TEXT,
+                    tags TEXT,
+                    created_at REAL,
+                    updated_at REAL
+                )
+            ''')
+            
             # 创建配置表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS configs (
@@ -360,6 +375,94 @@ class DatabaseStorage:
             if row:
                 return json.loads(row['value'])
             return None
+    
+    def save_route(self, route):
+        """保存路由
+        
+        Args:
+            route: 路由对象
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                INSERT OR REPLACE INTO routes 
+                (id, name, enabled, match_rule, response, validator, tags, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    route.id,
+                    route.name,
+                    1 if route.enabled else 0,
+                    json.dumps(route.match_rule.model_dump() if hasattr(route.match_rule, 'model_dump') else route.match_rule),
+                    json.dumps(route.response.model_dump() if hasattr(route.response, 'model_dump') else route.response),
+                    json.dumps(route.validator.model_dump() if route.validator and hasattr(route.validator, 'model_dump') else route.validator),
+                    json.dumps(route.tags),
+                    route.created_at,
+                    route.updated_at
+                )
+            )
+            conn.commit()
+    
+    def get_routes(self) -> List:
+        """获取所有路由
+        
+        Returns:
+            路由列表
+        """
+        from app.models.route import Route, RouteMatchRule, RouteResponse, RouteValidator
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM routes ORDER BY created_at DESC')
+            rows = cursor.fetchall()
+            
+            routes = []
+            for row in rows:
+                # 重建路由对象
+                match_rule_data = json.loads(row['match_rule'])
+                response_data = json.loads(row['response'])
+                validator_data = json.loads(row['validator']) if row['validator'] else None
+                tags = json.loads(row['tags']) if row['tags'] else []
+                
+                # 重建嵌套对象
+                match_rule = RouteMatchRule(**match_rule_data)
+                response = RouteResponse(**response_data)
+                validator = RouteValidator(**validator_data) if validator_data else None
+                
+                route = Route(
+                    id=row['id'],
+                    name=row['name'],
+                    enabled=bool(row['enabled']),
+                    match_rule=match_rule,
+                    response=response,
+                    validator=validator,
+                    tags=tags,
+                    created_at=row['created_at'],
+                    updated_at=row['updated_at']
+                )
+                routes.append(route)
+            
+            return routes
+    
+    def delete_route(self, route_id: str):
+        """删除路由
+        
+        Args:
+            route_id: 路由ID
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM routes WHERE id = ?', (route_id,))
+            conn.commit()
+    
+    def clear_routes(self):
+        """清空所有路由"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM routes')
+            conn.commit()
 
 
 # 创建全局数据库存储实例
