@@ -782,18 +782,20 @@
         
         // 更新路由列表
         function updateRoutesList() {
-            fetch('/admin/routes', {
+            const offset = (routesCurrentPage - 1) * routesPageSize;
+            
+            fetch(`/admin/routes?limit=${routesPageSize}&offset=${offset}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
                 }
             })
             .then(response => response.json())
-            .then(routes => {
+            .then(data => {
                 const tbody = document.querySelector('#routes-table tbody');
                 tbody.innerHTML = '';
                 
-                // 确保 routes 是一个数组
-                const routesArray = Array.isArray(routes) ? routes : [];
+                // 使用后端返回的新数据结构
+                const routesArray = data.items || [];
                 
                 if (routesArray.length === 0) {
                     // 显示空数据提示
@@ -837,7 +839,7 @@
                     });
                     
                     // 更新分页信息
-                    routesTotalItems = routesArray.length;
+                    routesTotalItems = data.total || routesArray.length;
                     routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
                     if (routesCurrentPage > routesTotalPages) {
                         routesCurrentPage = Math.max(1, routesTotalPages);
@@ -853,8 +855,19 @@
         // 格式化时间戳
         document.addEventListener('DOMContentLoaded', function() {
             // 计算运行时间
-            updateUptime();
-            setInterval(updateUptime, 1000);
+            
+            // 首次获取服务启动时间
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    // 计算服务启动时间并存储到全局变量
+                    window.serviceStartTime = Date.now() - (data.uptime * 1000);
+                    // 开始更新运行时间
+                    updateUptime();
+                });
+            
+            // 每5秒更新一次运行时间（在客户端计算）
+            setInterval(updateUptime, 5000);
             
             // 搜索路由
             document.getElementById('route-search').addEventListener('keyup', function(e) {
@@ -865,15 +878,34 @@
         });
         
         function updateUptime() {
-            fetch('/health')
-                .then(response => response.json())
-                .then(data => {
-                    const uptime = data.uptime;
-                    const hours = Math.floor(uptime / 3600);
-                    const minutes = Math.floor((uptime % 3600) / 60);
-                    const seconds = Math.floor(uptime % 60);
-                    document.getElementById('uptime').textContent = `${hours}h ${minutes}m ${seconds}s`;
-                });
+            // 检查是否已经获取了服务启动时间
+            if (window.serviceStartTime === undefined) {
+                // 如果没有，就获取一次
+                fetch('/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        // 计算服务启动时间并存储
+                        window.serviceStartTime = Date.now() - (data.uptime * 1000);
+                        console.log('服务启动时间已设置:', window.serviceStartTime);
+                        // 更新运行时间
+                        updateUptimeDisplay();
+                    })
+                    .catch(error => {
+                        console.error('获取健康检查数据失败:', error);
+                    });
+            } else {
+                // 如果已经有了，就直接在客户端计算
+                updateUptimeDisplay();
+            }
+        }
+        
+        function updateUptimeDisplay() {
+            // 计算当前运行时间（秒）
+            const uptime = (Date.now() - window.serviceStartTime) / 1000;
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = Math.floor(uptime % 60);
+            document.getElementById('uptime').textContent = `${hours}h ${minutes}m ${seconds}s`;
         }
         
         // 路由管理
@@ -1110,44 +1142,85 @@
         }
         
         function searchRoutes() {
-            const searchTerm = document.getElementById('route-search').value.toLowerCase();
+            const searchTerm = document.getElementById('route-search').value;
             
-            const tbody = document.querySelector('#routes-table tbody');
-            // 先清除所有现有的提示行
-            const existingEmptyRows = tbody.querySelectorAll('tr');
-            existingEmptyRows.forEach(row => {
-                if (row.cells.length === 1 && row.cells[0].colSpan === 7) {
-                    row.remove();
-                }
-            });
-            
-            const rows = document.querySelectorAll('#routes-table tbody tr');
-            let hasResults = false;
-            
-            rows.forEach(row => {
-                const name = row.cells[1].textContent.toLowerCase();
-                const path = row.cells[2].textContent.toLowerCase();
-                const methods = row.cells[3].textContent.toLowerCase();
-                
-                if (name.includes(searchTerm) || path.includes(searchTerm) || methods.includes(searchTerm)) {
-                    row.style.display = '';
-                    hasResults = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-            
-            // 如果没有结果，显示提示信息
-            if (!hasResults) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = `
-                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
-                        <p>暂无查询记录</p>
-                        <p style="margin-top: 10px;">未找到与"${searchTerm}"相关的路由</p>
-                    </td>
-                `;
-                tbody.appendChild(emptyRow);
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            if (searchTerm) {
+                queryParams.append('search', searchTerm);
             }
+            
+            // 添加分页参数
+            queryParams.append('limit', routesPageSize);
+            queryParams.append('offset', 0); // 重置为第一页
+            
+            // 重置页码
+            routesCurrentPage = 1;
+            
+            // 从后端获取数据
+            fetch(`/admin/routes?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#routes-table tbody');
+                tbody.innerHTML = '';
+                
+                const routes = data.items || [];
+                
+                if (routes.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无查询记录</p>
+                            <p style="margin-top: 10px;">未找到与"${searchTerm}"相关的路由</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    routesTotalItems = 0;
+                    routesTotalPages = 1;
+                    routesCurrentPage = 1;
+                    updateRoutesPaginationUI();
+                } else {
+                    // 显示路由列表
+                    routes.forEach(route => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="route-checkbox" data-id="${route.id}" onchange="updateBatchDeleteButton()"></td>
+                            <td>${route.id.substring(0, 8)}...</td>
+                            <td>${route.name}</td>
+                            <td>${route.match_rule ? route.match_rule.path : ''}</td>
+                            <td>${route.match_rule ? route.match_rule.methods.join(', ') : ''}</td>
+                            <td>
+                                <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
+                                    ${route.enabled ? '启用' : '禁用'}
+                                </span>
+                            </td>
+                            <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                                <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
+                                <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    routesTotalItems = data.total || routes.length;
+                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
+                    routesCurrentPage = 1;
+                    updateRoutesPaginationUI();
+                }
+            })
+            .catch(error => {
+                showToast('搜索路由失败：' + error.message, 'error');
+            });
         }
         
         function resetRouteSearch() {
@@ -1314,49 +1387,83 @@
         // 请求历史管理
         function filterRequests() {
             const method = document.getElementById('request-method').value;
-            const path = document.getElementById('request-path').value.toLowerCase();
+            const path = document.getElementById('request-path').value;
             const status = document.getElementById('request-status').value;
             
-            const tbody = document.querySelector('#requests-table tbody');
-            // 先清除所有现有的提示行
-            const existingEmptyRows = tbody.querySelectorAll('tr');
-            existingEmptyRows.forEach(row => {
-                if (row.cells.length === 1 && row.cells[0].colSpan === 7) {
-                    row.remove();
-                }
-            });
-            
-            const rows = document.querySelectorAll('#requests-table tbody tr');
-            let hasResults = false;
-            
-            rows.forEach(row => {
-                const rowMethod = row.cells[1].textContent;
-                const rowPath = row.cells[2].textContent.toLowerCase();
-                const rowStatus = row.cells[3].textContent;
-                
-                const methodMatch = !method || rowMethod === method;
-                const pathMatch = !path || rowPath.includes(path);
-                const statusMatch = !status || rowStatus === status;
-                
-                if (methodMatch && pathMatch && statusMatch) {
-                    row.style.display = '';
-                    hasResults = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-            
-            // 如果没有结果，显示提示信息
-            if (!hasResults) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = `
-                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
-                        <p>暂无查询记录</p>
-                        <p style="margin-top: 10px;">未找到符合条件的请求历史</p>
-                    </td>
-                `;
-                tbody.appendChild(emptyRow);
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            if (method) {
+                queryParams.append('method', method);
             }
+            if (path) {
+                queryParams.append('path', path);
+            }
+            if (status) {
+                queryParams.append('status_code', status);
+            }
+            
+            // 添加分页参数
+            queryParams.append('limit', requestsPageSize);
+            queryParams.append('offset', 0); // 重置为第一页
+            
+            // 重置页码
+            requestsCurrentPage = 1;
+            
+            // 从后端获取过滤后的数据
+            fetch(`/admin/requests?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#requests-table tbody');
+                tbody.innerHTML = '';
+                
+                const requests = data.items || [];
+                
+                if (requests.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无查询记录</p>
+                            <p style="margin-top: 10px;">未找到符合条件的请求历史</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    requestsTotalItems = 0;
+                    requestsTotalPages = 1;
+                    updateRequestsPaginationUI();
+                } else {
+                    // 显示请求历史列表
+                    requests.forEach(req => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${timestampToDateTime(req.timestamp)}</td>
+                            <td>${req.method}</td>
+                            <td>${req.path}</td>
+                            <td>${req.response_status}</td>
+                            <td>${req.response_time.toFixed(3)}s</td>
+                            <td>${req.client_ip}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="viewRequest('${req.id}')">查看</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    requestsTotalItems = data.total || requests.length;
+                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
+                    updateRequestsPaginationUI();
+                }
+            })
+            .catch(error => {
+                showToast('过滤请求失败：' + error.message, 'error');
+            });
         }
         
         function clearFilters() {
@@ -1387,15 +1494,19 @@
         
         // 更新请求历史列表
         function updateRequestsList() {
-            fetch('/admin/requests', {
+            const offset = (requestsCurrentPage - 1) * requestsPageSize;
+            
+            fetch(`/admin/requests?limit=${requestsPageSize}&offset=${offset}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
                 }
             })
             .then(response => response.json())
-            .then(requests => {
+            .then(data => {
                 const tbody = document.querySelector('#requests-table tbody');
                 tbody.innerHTML = '';
+                
+                const requests = data.items || [];
                 
                 if (requests.length === 0) {
                     // 显示空数据提示
@@ -1407,6 +1518,11 @@
                         </td>
                     `;
                     tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    requestsTotalItems = 0;
+                    requestsTotalPages = 1;
+                    updateRequestsPaginationUI();
                 } else {
                     // 显示请求历史列表
                     requests.forEach(req => {
@@ -1424,6 +1540,11 @@
                         `;
                         tbody.appendChild(row);
                     });
+                    
+                    // 更新分页信息
+                    requestsTotalItems = data.total || requests.length;
+                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
+                    updateRequestsPaginationUI();
                 }
             })
             .catch(error => {
@@ -1462,7 +1583,7 @@
                         <p><strong>响应时间：</strong>${data.response.response_time}s</p>
                         <p><strong>内容类型：</strong>${data.response.content_type}</p>
                         <p><strong>响应内容：</strong></p>
-                        <pre>${JSON.stringify(data.response.content, null, 2)}</pre>
+                        <pre>${typeof data.response.content === 'string' ? data.response.content : JSON.stringify(data.response.content, null, 2)}</pre>
                     </div>
                 `;
                 
@@ -1519,7 +1640,7 @@
                 toggleProxyInput();
                 
                 // 保存默认配置
-                fetch('/admin/config', {
+                fetch('/config', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1608,7 +1729,7 @@
             };
             
             // 保存配置
-            fetch('/admin/config', {
+            fetch('/config', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1714,14 +1835,89 @@
             if (page >= 1 && page <= routesTotalPages) {
                 routesCurrentPage = page;
                 updateRoutesPaginationUI();
-                applyRoutesPagination();
+                updateRoutesList();
             }
         }
         
         function changeRoutesPageSize() {
             routesPageSize = parseInt(document.getElementById('routes-page-size').value);
             routesCurrentPage = 1;
-            initRoutesPagination();
+            
+            // 重新获取数据，应用新的每页大小
+            const searchTerm = document.getElementById('route-search').value;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            if (searchTerm) {
+                queryParams.append('search', searchTerm);
+            }
+            
+            // 添加分页参数
+            queryParams.append('limit', routesPageSize);
+            queryParams.append('offset', 0); // 重置为第一页
+            
+            // 从后端获取数据
+            fetch(`/admin/routes?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#routes-table tbody');
+                tbody.innerHTML = '';
+                
+                const routes = data.items || [];
+                
+                if (routes.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无路由数据</p>
+                            <p style="margin-top: 10px;">点击"创建新路由"按钮添加第一条路由</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    routesTotalItems = 0;
+                    routesTotalPages = 1;
+                    updateRoutesPaginationUI();
+                } else {
+                    // 显示路由列表
+                    routes.forEach(route => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="route-checkbox" data-id="${route.id}" onchange="updateBatchDeleteButton()"></td>
+                            <td>${route.id.substring(0, 8)}...</td>
+                            <td>${route.name}</td>
+                            <td>${route.match_rule ? route.match_rule.path : ''}</td>
+                            <td>${route.match_rule ? route.match_rule.methods.join(', ') : ''}</td>
+                            <td>
+                                <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
+                                    ${route.enabled ? '启用' : '禁用'}
+                                </span>
+                            </td>
+                            <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                                <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
+                                <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    routesTotalItems = data.total || routes.length;
+                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
+                    updateRoutesPaginationUI();
+                }
+            })
+            .catch(error => {
+                showToast('更新路由列表失败：' + error.message, 'error');
+            });
         }
         
         // 请求历史分页
@@ -1764,14 +1960,90 @@
             if (page >= 1 && page <= requestsTotalPages) {
                 requestsCurrentPage = page;
                 updateRequestsPaginationUI();
-                applyRequestsPagination();
+                updateRequestsList();
             }
         }
         
         function changeRequestsPageSize() {
             requestsPageSize = parseInt(document.getElementById('requests-page-size').value);
             requestsCurrentPage = 1;
-            initRequestsPagination();
+            
+            // 重新获取数据，应用新的每页大小
+            const method = document.getElementById('request-method').value;
+            const path = document.getElementById('request-path').value;
+            const status = document.getElementById('request-status').value;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            if (method) {
+                queryParams.append('method', method);
+            }
+            if (path) {
+                queryParams.append('path', path);
+            }
+            if (status) {
+                queryParams.append('status_code', status);
+            }
+            
+            // 添加分页参数
+            queryParams.append('limit', requestsPageSize);
+            queryParams.append('offset', 0); // 重置为第一页
+            
+            // 从后端获取数据
+            fetch(`/admin/requests?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#requests-table tbody');
+                tbody.innerHTML = '';
+                
+                const requests = data.items || [];
+                
+                if (requests.length === 0) {
+                    // 显示空数据提示
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无请求历史数据</p>
+                            <p style="margin-top: 10px;">当有请求访问API时，这里会显示请求历史</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    requestsTotalItems = 0;
+                    requestsTotalPages = 1;
+                    updateRequestsPaginationUI();
+                } else {
+                    // 显示请求历史列表
+                    requests.forEach(req => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${timestampToDateTime(req.timestamp)}</td>
+                            <td>${req.method}</td>
+                            <td>${req.path}</td>
+                            <td>${req.response_status}</td>
+                            <td>${req.response_time.toFixed(3)}s</td>
+                            <td>${req.client_ip}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="viewRequest('${req.id}')">查看</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    requestsTotalItems = data.total || requests.length;
+                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
+                    updateRequestsPaginationUI();
+                }
+            })
+            .catch(error => {
+                showToast('更新请求历史失败：' + error.message, 'error');
+            });
         }
         
         // 数据统计和分析

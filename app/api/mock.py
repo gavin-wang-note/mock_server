@@ -226,13 +226,26 @@ async def record_request_and_response(request_id, start_time, method, path, head
     
     # 记录响应
     response_id = str(uuid.uuid4())
+    
+    # 尝试解析响应内容为JSON对象（如果是JSON内容）
+    content = None
+    if hasattr(response, 'body'):
+        content_str = response.body.decode()
+        # 尝试解析JSON
+        try:
+            import json
+            content = json.loads(content_str)
+        except json.JSONDecodeError:
+            # 如果不是JSON，保持原始字符串
+            content = content_str
+    
     response_record = ResponseModel(
         id=response_id,
         request_id=request_id,
         timestamp=time.time(),
         status_code=status_code,
         headers=dict(response.headers),
-        content=response.body.decode() if hasattr(response, 'body') else None,
+        content=content,
         content_type=response.headers.get('content-type', 'application/json'),
         response_time=response_time,
         delay_applied=0.0  # 实际应用的延迟可以从响应配置中获取

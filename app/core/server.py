@@ -121,6 +121,7 @@ def create_app() -> FastAPI:
 def run_server():
     """启动服务器"""
     import uvicorn
+    import logging
     
     # 配置服务器参数
     uvicorn_config = {
@@ -135,6 +136,62 @@ def run_server():
     if config.server.enable_https and config.server.https_cert and config.server.https_key:
         uvicorn_config["ssl_certfile"] = config.server.https_cert
         uvicorn_config["ssl_keyfile"] = config.server.https_key
+    
+    # 配置Uvicorn日志
+    if config.log.file:
+        # 创建Uvicorn日志配置
+        log_config = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                },
+                "access": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                },
+            },
+            "handlers": {
+                "default": {
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "formatter": "default",
+                    "filename": config.log.file,
+                    "maxBytes": 10*1024*1024,  # 10MB
+                    "backupCount": 5,  # 最多保留 5 个备份
+                    "encoding": "utf-8",
+                },
+                "access": {
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "formatter": "access",
+                    "filename": config.log.file,
+                    "maxBytes": 10*1024*1024,  # 10MB
+                    "backupCount": 5,  # 最多保留 5 个备份
+                    "encoding": "utf-8",
+                },
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                },
+            },
+            "loggers": {
+                "uvicorn": {
+                    "level": config.log.level.upper(),
+                    "handlers": ["default", "console"],
+                    "propagate": False,
+                },
+                "uvicorn.error": {
+                    "level": config.log.level.upper(),
+                    "handlers": ["default", "console"],
+                    "propagate": False,
+                },
+                "uvicorn.access": {
+                    "level": config.log.level.upper(),
+                    "handlers": ["access", "console"],
+                    "propagate": False,
+                },
+            },
+        }
+        uvicorn_config["log_config"] = log_config
     
     # 启动服务器
     uvicorn.run(**uvicorn_config)

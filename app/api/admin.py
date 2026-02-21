@@ -115,10 +115,42 @@ async def login(username: str, password: str):
 
 
 # 路由管理
-@router.get("/admin/routes", response_model=List[Route])
-async def get_routes(current_user: dict = Depends(get_current_user)):
+@router.get("/admin/routes")
+async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: int = 0, current_user: dict = Depends(get_current_user)):
     """获取所有路由"""
-    return get_all_routes()
+    routes = get_all_routes()
+    
+    # 应用搜索过滤
+    if search and search.strip():
+        search_lower = search.lower()
+        filtered_routes = []
+        for route in routes:
+            # 检查路由名称、路径和方法是否包含搜索词
+            name_match = search_lower in route.name.lower() if route.name else False
+            path_match = False
+            methods_match = False
+            
+            if route.match_rule:
+                path_match = search_lower in route.match_rule.path.lower() if route.match_rule.path else False
+                if route.match_rule.methods:
+                    methods_str = ", ".join(route.match_rule.methods).lower()
+                    methods_match = search_lower in methods_str
+            
+            if name_match or path_match or methods_match:
+                filtered_routes.append(route)
+        routes = filtered_routes
+    
+    # 应用分页
+    total = len(routes)
+    routes = routes[offset:offset + limit]
+    
+    # 返回带有分页信息的数据结构
+    return {
+        "items": routes,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
 
 
 @router.post("/admin/routes", response_model=Route)
@@ -207,7 +239,7 @@ async def delete_route(route_id: str, current_user: dict = Depends(get_current_u
 
 
 # 请求历史管理
-@router.get("/requests", response_model=List[RequestModel])
+@router.get("/admin/requests")
 async def get_requests(
     limit: int = 100,
     offset: int = 0,
@@ -240,10 +272,15 @@ async def get_requests(
     total = len(requests)
     requests = requests[offset:offset + limit]
     
-    return requests
+    return {
+        "items": requests,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
 
 
-@router.get("/requests/{request_id}")
+@router.get("/admin/requests/{request_id}")
 async def get_request(request_id: str, current_user: dict = Depends(get_current_user)):
     """获取指定请求"""
     from app.storage.database import db_storage
@@ -262,7 +299,7 @@ async def get_request(request_id: str, current_user: dict = Depends(get_current_
     }
 
 
-@router.delete("/requests")
+@router.delete("/admin/requests")
 async def clear_requests(current_user: dict = Depends(get_current_user)):
     """清空请求历史"""
     from app.api.mock import request_history, response_history

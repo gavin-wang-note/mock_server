@@ -1,5 +1,6 @@
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from app.core.config import config
 
 
@@ -27,7 +28,14 @@ class Logger:
             if log_dir and not os.path.exists(log_dir):
                 os.makedirs(log_dir, exist_ok=True)
             
-            file_handler = logging.FileHandler(config.log.file, encoding='utf-8')
+            # 创建带轮转功能的文件处理器
+            # 单个日志文件最大 10MB，最多保留 5 个备份
+            file_handler = RotatingFileHandler(
+                config.log.file, 
+                maxBytes=10*1024*1024,  # 10MB
+                backupCount=5,  # 最多保留 5 个备份
+                encoding='utf-8'
+            )
             file_handler.setLevel(self._get_log_level(config.log.level))
         
         # 定义日志格式

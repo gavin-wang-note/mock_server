@@ -9,10 +9,28 @@ from app.core.config import config
 # 创建路由处理实例
 router = APIRouter()
 
+# 健康检查缓存
+health_cache = {
+    "last_update": 0,
+    "response": None,
+    "cache_duration": 5  # 缓存5秒
+}
+
 
 @router.get("/health")
 async def health_check(request: Request):
     """健康检查端点"""
+    # 检查缓存
+    current_time = time.time()
+    if current_time - health_cache["last_update"] < health_cache["cache_duration"] and health_cache["response"]:
+        # 如果缓存有效，直接返回缓存的响应
+        return health_cache["response"]
+    
+    # 打印请求信息，找出频繁调用的来源
+    client_host = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    print(f"Health check requested from {client_host} with user agent: {user_agent}")
+    
     # 获取服务运行时间
     uptime = get_server_uptime()
     
@@ -21,7 +39,6 @@ async def health_check(request: Request):
     total_requests = len(request_history)
     
     # 计算最近5分钟的请求数
-    import time
     from datetime import datetime
     five_minutes_ago = time.time() - 300
     recent_requests = len([r for r in request_history if r.timestamp > five_minutes_ago])
@@ -172,7 +189,11 @@ async def health_check(request: Request):
         return HTMLResponse(content=html_content)
     else:
         # 返回 JSON 响应
-        return JSONResponse(content=response.model_dump())
+        json_response = JSONResponse(content=response.model_dump())
+        # 缓存响应
+        health_cache["response"] = json_response
+        health_cache["last_update"] = time.time()
+        return json_response
 
 
 @router.get("/metrics")
