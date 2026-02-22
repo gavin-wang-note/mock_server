@@ -48,13 +48,52 @@ class Templater:
         """
         result = template
         
-        # 替换请求相关变量
-        if 'request' in context:
-            for key, value in context['request'].items():
-                placeholder = f"{{{{request.{key}}}}}"
-                if placeholder in result:
-                    result = result.replace(placeholder, str(value))
+        # 替换复杂变量（支持嵌套访问，如request.headers.user-agent）
+        import re
+        # 匹配模板变量模式：{{namespace.key1.key2...}}
+        pattern = r'\{\{(\w+\.(?:[\w-]+\.)*[\w-]+)\}\}'
+        matches = re.findall(pattern, result)
         
+        for match in matches:
+            placeholder = f"{{{{{match}}}}}"
+            # 解析变量路径
+            parts = match.split('.')
+            if len(parts) < 2:
+                continue
+            
+            namespace = parts[0]
+            nested_keys = parts[1:]
+            
+            # 获取基础对象
+            if namespace not in context:
+                continue
+            
+            # 遍历嵌套键
+            current = context[namespace]
+            for key in nested_keys:
+                # 处理特殊情况，如user-agent
+                if isinstance(current, dict):
+                    # 尝试直接访问
+                    if key in current:
+                        current = current[key]
+                    else:
+                        # 尝试大小写不敏感访问（适用于headers）
+                        found = False
+                        for k, v in current.items():
+                            if k.lower() == key.lower():
+                                current = v
+                                found = True
+                                break
+                        if not found:
+                            break
+                else:
+                    break
+            else:
+                # 成功遍历所有嵌套键
+                if placeholder in result:
+                    result = result.replace(placeholder, str(current))
+        
+        # 替换简单变量
         # 替换路径参数
         if 'path' in context:
             for key, value in context['path'].items():

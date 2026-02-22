@@ -35,10 +35,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[dict]:
+def verify_token(token: str, secret_key: Optional[str] = None, algorithm: Optional[str] = None) -> Optional[dict]:
     """验证令牌"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        use_secret_key = secret_key or SECRET_KEY
+        use_algorithm = algorithm or ALGORITHM
+        payload = jwt.decode(token, use_secret_key, algorithms=[use_algorithm])
         return payload
     except JWTError:
         return None

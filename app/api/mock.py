@@ -167,13 +167,51 @@ async def mock_handler(request: Request, path: str):
 
 async def generate_response(route_response, context):
     """生成响应"""
+    import random
+    
     # 应用延迟
+    applied_delay = 0.0
     if route_response.delay > 0:
         await asyncio.sleep(route_response.delay)
+        applied_delay = route_response.delay
     elif route_response.delay_range:
         min_delay, max_delay = route_response.delay_range
-        delay = (max_delay - min_delay) * time.time() % (max_delay - min_delay) + min_delay
+        delay = (max_delay - min_delay) * random.random() + min_delay
         await asyncio.sleep(delay)
+        applied_delay = delay
+    
+    # 模拟错误场景
+    if route_response.simulate_error:
+        # 根据错误概率决定是否发生错误
+        if random.random() <= route_response.error_probability:
+            if route_response.error_type == "timeout":
+                # 模拟超时（长时间延迟）
+                await asyncio.sleep(30)  # 30秒超时
+                response = JSONResponse(
+                    status_code=408,
+                    content={"error": "Request Timeout"}
+                )
+                # 记录应用的延迟
+                response.applied_delay = applied_delay + 30
+                return response
+            elif route_response.error_type == "network_error":
+                # 模拟网络错误
+                response = JSONResponse(
+                    status_code=503,
+                    content={"error": "Service Unavailable"}
+                )
+                # 记录应用的延迟
+                response.applied_delay = applied_delay
+                return response
+            elif route_response.error_type == "server_error":
+                # 模拟服务器错误
+                response = JSONResponse(
+                    status_code=500,
+                    content={"error": "Internal Server Error"}
+                )
+                # 记录应用的延迟
+                response.applied_delay = applied_delay
+                return response
     
     # 渲染响应内容
     rendered_content = templater.render_response(route_response.content, context)
@@ -192,6 +230,8 @@ async def generate_response(route_response, context):
             headers=route_response.headers or {}
         )
     
+    # 记录应用的延迟
+    response.applied_delay = applied_delay
     return response
 
 
@@ -239,6 +279,9 @@ async def record_request_and_response(request_id, start_time, method, path, head
             # 如果不是JSON，保持原始字符串
             content = content_str
     
+    # 获取应用的延迟
+    delay_applied = getattr(response, 'applied_delay', 0.0)
+    
     response_record = ResponseModel(
         id=response_id,
         request_id=request_id,
@@ -248,7 +291,7 @@ async def record_request_and_response(request_id, start_time, method, path, head
         content=content,
         content_type=response.headers.get('content-type', 'application/json'),
         response_time=response_time,
-        delay_applied=0.0  # 实际应用的延迟可以从响应配置中获取
+        delay_applied=delay_applied  # 记录实际应用的延迟
     )
     # 保存到内存
     response_history.append(response_record)

@@ -25,6 +25,13 @@ class RouteResponse(BaseModel):
     content_type: str = Field(default="application/json", description="响应内容类型")
     delay: float = Field(default=0.0, description="响应延迟（秒）")
     delay_range: Optional[List[float]] = Field(default=None, description="随机延迟范围 [min, max]")
+    # 场景模拟字段
+    simulate_error: bool = Field(default=False, description="是否模拟错误")
+    error_type: Optional[str] = Field(default=None, description="错误类型：timeout, network_error, server_error")
+    error_probability: float = Field(default=1.0, description="错误发生概率（0-1）")
+    # 认证测试字段
+    auth_scenario: Optional[str] = Field(default=None, description="认证场景：valid, expired, invalid")
+    auth_token: Optional[str] = Field(default=None, description="认证令牌")
 
 
 class RouteValidator(BaseModel):
@@ -33,6 +40,10 @@ class RouteValidator(BaseModel):
     field_types: Optional[Dict[str, str]] = Field(default=None, description="字段类型验证")
     field_ranges: Optional[Dict[str, List[Any]]] = Field(default=None, description="字段值范围验证")
     validate_jwt: bool = Field(default=False, description="是否验证JWT令牌")
+    jwt_secret: Optional[str] = Field(default=None, description="JWT密钥")
+    jwt_algorithm: Optional[str] = Field(default="HS256", description="JWT算法")
+    validate_oauth: bool = Field(default=False, description="是否验证OAuth令牌")
+    oauth_token: Optional[str] = Field(default=None, description="OAuth令牌")
     error_response: Optional[RouteResponse] = Field(default=None, description="验证失败的错误响应")
 
 

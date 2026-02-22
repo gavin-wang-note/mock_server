@@ -46,7 +46,13 @@ class Validator:
             if not headers:
                 return False, "缺少HTTP头部"
             
-            auth_header = headers.get('Authorization')
+            # 检查Authorization头部（大小写不敏感）
+            auth_header = None
+            for key, value in headers.items():
+                if key.lower() == 'authorization':
+                    auth_header = value
+                    break
+            
             if not auth_header:
                 return False, "缺少Authorization头部"
             
@@ -54,8 +60,31 @@ class Validator:
                 return False, "Authorization头部格式错误"
             
             token = auth_header.split(' ')[1]
-            if not verify_token(token):
+            from app.core.security import verify_token
+            if not verify_token(token, validator.jwt_secret, validator.jwt_algorithm):
                 return False, "无效的JWT令牌"
+        
+        # 验证OAuth令牌
+        if validator.validate_oauth:
+            if not headers:
+                return False, "缺少HTTP头部"
+            
+            # 检查Authorization头部（大小写不敏感）
+            auth_header = None
+            for key, value in headers.items():
+                if key.lower() == 'authorization':
+                    auth_header = value
+                    break
+            
+            if not auth_header:
+                return False, "缺少Authorization头部"
+            
+            if not auth_header.startswith('Bearer '):
+                return False, "Authorization头部格式错误"
+            
+            token = auth_header.split(' ')[1]
+            if validator.oauth_token and token != validator.oauth_token:
+                return False, "无效的OAuth令牌"
         
         return True, None
     
