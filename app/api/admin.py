@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from typing import List, Optional
@@ -98,7 +98,10 @@ async def admin_dashboard(request: Request):
 
 # 认证端点
 @router.post("/login")
-async def login(username: str, password: str):
+async def login(
+    username: str = Body(..., description="用户名"),
+    password: str = Body(..., description="密码")
+):
     """登录认证"""
     # 验证用户
     if not authenticate_user(username, password):
@@ -116,7 +119,7 @@ async def login(username: str, password: str):
 
 # 路由管理
 @router.get("/admin/routes")
-async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: int = 0, current_user: dict = Depends(get_current_user)):
+async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: int = 0, sort: Optional[str] = None, order: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """获取所有路由"""
     routes = get_all_routes()
     
@@ -139,6 +142,19 @@ async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: in
             if name_match or path_match or methods_match:
                 filtered_routes.append(route)
         routes = filtered_routes
+    
+    # 应用排序
+    if sort:
+        reverse = order == "desc"
+        
+        if sort == "id":
+            routes.sort(key=lambda x: x.id, reverse=reverse)
+        elif sort == "name":
+            routes.sort(key=lambda x: x.name or "", reverse=reverse)
+        elif sort == "path":
+            routes.sort(key=lambda x: x.match_rule.path if x.match_rule else "", reverse=reverse)
+        elif sort == "created_at":
+            routes.sort(key=lambda x: x.created_at or 0, reverse=reverse)
     
     # 应用分页
     total = len(routes)
@@ -247,6 +263,8 @@ async def get_requests(
     path: Optional[str] = None,
     status_code: Optional[int] = None,
     hours: Optional[int] = None,
+    sort: Optional[str] = None,
+    order: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """获取请求历史"""
@@ -267,6 +285,23 @@ async def get_requests(
         requests = [r for r in requests if path in r.path]
     if status_code:
         requests = [r for r in requests if r.response_status == status_code]
+    
+    # 应用排序
+    if sort:
+        reverse = order == "desc"
+        
+        if sort == "timestamp":
+            requests.sort(key=lambda x: x.timestamp, reverse=reverse)
+        elif sort == "method":
+            requests.sort(key=lambda x: x.method, reverse=reverse)
+        elif sort == "path":
+            requests.sort(key=lambda x: x.path, reverse=reverse)
+        elif sort == "response_status":
+            requests.sort(key=lambda x: x.response_status, reverse=reverse)
+        elif sort == "response_time":
+            requests.sort(key=lambda x: x.response_time, reverse=reverse)
+        elif sort == "client_ip":
+            requests.sort(key=lambda x: x.client_ip, reverse=reverse)
     
     # 应用分页
     total = len(requests)

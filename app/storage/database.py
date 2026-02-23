@@ -21,9 +21,37 @@ class DatabaseStorage:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.init_db()
     
+    def close(self):
+        """关闭数据库连接"""
+        # SQLite 连接在 with 语句块结束时会自动关闭
+        # 此方法仅用于确保在测试环境中正确清理资源
+        pass
+    
+    def _get_connection(self):
+        """获取数据库连接
+        
+        Returns:
+            sqlite3.Connection: 数据库连接
+        """
+        return sqlite3.connect(self.db_path)
+    
+    def _close_connection(self, conn):
+        """关闭数据库连接
+        
+        Args:
+            conn: 数据库连接
+        """
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+    
     def init_db(self):
         """初始化数据库表"""
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             
             # 创建请求表
@@ -86,6 +114,8 @@ class DatabaseStorage:
             ''')
             
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def save_request(self, request: RequestModel):
         """保存请求记录
@@ -93,7 +123,9 @@ class DatabaseStorage:
         Args:
             request: 请求模型实例
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 '''
@@ -116,6 +148,8 @@ class DatabaseStorage:
                 )
             )
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def save_response(self, response: ResponseModel):
         """保存响应记录
@@ -123,7 +157,9 @@ class DatabaseStorage:
         Args:
             response: 响应模型实例
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 '''
@@ -144,6 +180,8 @@ class DatabaseStorage:
                 )
             )
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def get_requests(self, limit: int = 1000, offset: int = 0, start_time: Optional[float] = None, end_time: Optional[float] = None) -> List[RequestModel]:
         """获取请求记录
@@ -157,7 +195,9 @@ class DatabaseStorage:
         Returns:
             请求记录列表
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -219,6 +259,8 @@ class DatabaseStorage:
                 requests.append(request)
             
             return requests
+        finally:
+            self._close_connection(conn)
     
     def get_request_by_id(self, request_id: str) -> Optional[RequestModel]:
         """根据ID获取请求记录
@@ -229,7 +271,9 @@ class DatabaseStorage:
         Returns:
             请求记录或None
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -273,6 +317,8 @@ class DatabaseStorage:
                     response_time=row['response_time']
                 )
             return None
+        finally:
+            self._close_connection(conn)
     
     def get_response_by_request_id(self, request_id: str) -> Optional[ResponseModel]:
         """根据请求ID获取响应记录
@@ -283,7 +329,9 @@ class DatabaseStorage:
         Returns:
             响应记录或None
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -308,6 +356,8 @@ class DatabaseStorage:
                     delay_applied=row['delay_applied']
                 )
             return None
+        finally:
+            self._close_connection(conn)
     
     def get_request_count(self) -> int:
         """获取请求总数
@@ -315,19 +365,27 @@ class DatabaseStorage:
         Returns:
             请求总数
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute('SELECT COUNT(*) FROM requests')
             count = cursor.fetchone()[0]
             return count
+        finally:
+            self._close_connection(conn)
     
     def clear_requests(self):
         """清空请求和响应记录"""
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute('DELETE FROM responses')
             cursor.execute('DELETE FROM requests')
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def save_config(self, name: str, value: Dict[str, Any]):
         """保存配置
@@ -339,7 +397,9 @@ class DatabaseStorage:
         import time
         current_time = time.time()
         
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 '''
@@ -350,6 +410,8 @@ class DatabaseStorage:
                 (name, json.dumps(value), name, current_time, current_time)
             )
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def get_config(self, name: str) -> Optional[Dict[str, Any]]:
         """获取配置
@@ -360,7 +422,9 @@ class DatabaseStorage:
         Returns:
             配置值或None
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
@@ -375,6 +439,8 @@ class DatabaseStorage:
             if row:
                 return json.loads(row['value'])
             return None
+        finally:
+            self._close_connection(conn)
     
     def save_route(self, route):
         """保存路由
@@ -382,7 +448,9 @@ class DatabaseStorage:
         Args:
             route: 路由对象
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 '''
@@ -403,6 +471,8 @@ class DatabaseStorage:
                 )
             )
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def get_routes(self) -> List:
         """获取所有路由
@@ -412,7 +482,9 @@ class DatabaseStorage:
         """
         from app.models.route import Route, RouteMatchRule, RouteResponse, RouteValidator
         
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM routes ORDER BY created_at DESC')
@@ -445,6 +517,8 @@ class DatabaseStorage:
                 routes.append(route)
             
             return routes
+        finally:
+            self._close_connection(conn)
     
     def delete_route(self, route_id: str):
         """删除路由
@@ -452,17 +526,25 @@ class DatabaseStorage:
         Args:
             route_id: 路由ID
         """
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute('DELETE FROM routes WHERE id = ?', (route_id,))
             conn.commit()
+        finally:
+            self._close_connection(conn)
     
     def clear_routes(self):
         """清空所有路由"""
-        with sqlite3.connect(self.db_path) as conn:
+        conn = None
+        try:
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute('DELETE FROM routes')
             conn.commit()
+        finally:
+            self._close_connection(conn)
 
 
 # 创建全局数据库存储实例

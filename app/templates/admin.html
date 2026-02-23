@@ -343,6 +343,27 @@
         .toast.info {
             background-color: #2196F3;
         }
+        
+        /* 排序样式 */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .sortable:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .sort-icon {
+            margin-left: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .sort-icon.active {
+            color: #007bff;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -385,12 +406,20 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="select-all-routes" onchange="toggleSelectAllRoutes(this)"></th>
-                        <th>ID</th>
-                        <th>名称</th>
-                        <th>路径</th>
+                        <th class="sortable" onclick="sortRoutes('id')">
+                            ID <span class="sort-icon" data-field="id">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRoutes('name')">
+                            名称 <span class="sort-icon" data-field="name">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRoutes('path')">
+                            路径 <span class="sort-icon" data-field="path">▲</span>
+                        </th>
                         <th>方法</th>
                         <th>状态</th>
-                        <th>创建时间</th>
+                        <th class="sortable" onclick="sortRoutes('created_at')">
+                            创建时间 <span class="sort-icon" data-field="created_at">▼</span>
+                        </th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -460,12 +489,24 @@
             <table id="requests-table">
                 <thead>
                     <tr>
-                        <th>时间</th>
-                        <th>方法</th>
-                        <th>路径</th>
-                        <th>状态码</th>
-                        <th>响应时间</th>
-                        <th>客户端IP</th>
+                        <th class="sortable" onclick="sortRequests('timestamp')">
+                            时间 <span class="sort-icon" data-field="timestamp">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortRequests('method')">
+                            方法 <span class="sort-icon" data-field="method">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRequests('path')">
+                            路径 <span class="sort-icon" data-field="path">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRequests('response_status')">
+                            状态码 <span class="sort-icon" data-field="response_status">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRequests('response_time')">
+                            响应时间 <span class="sort-icon" data-field="response_time">▲</span>
+                        </th>
+                        <th class="sortable" onclick="sortRequests('client_ip')">
+                            客户端IP <span class="sort-icon" data-field="client_ip">▲</span>
+                        </th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -784,7 +825,14 @@
         function updateRoutesList() {
             const offset = (routesCurrentPage - 1) * routesPageSize;
             
-            fetch(`/admin/routes?limit=${routesPageSize}&offset=${offset}`, {
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('limit', routesPageSize);
+            queryParams.append('offset', offset);
+            queryParams.append('sort', routesSortField);
+            queryParams.append('order', routesSortOrder);
+            
+            fetch(`/admin/routes?${queryParams.toString()}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
                 }
@@ -1496,7 +1544,14 @@
         function updateRequestsList() {
             const offset = (requestsCurrentPage - 1) * requestsPageSize;
             
-            fetch(`/admin/requests?limit=${requestsPageSize}&offset=${offset}`, {
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('limit', requestsPageSize);
+            queryParams.append('offset', offset);
+            queryParams.append('sort', requestsSortField);
+            queryParams.append('order', requestsSortOrder);
+            
+            fetch(`/admin/requests?${queryParams.toString()}`, {
                 headers: {
                     'Authorization': 'Bearer mock_server_admin_token'
                 }
@@ -1795,11 +1850,13 @@
             });
         });
         
-        // 路由管理分页
+        // 路由管理分页和排序
         let routesCurrentPage = 1;
         let routesPageSize = 10;
         let routesTotalItems = 0;
         let routesTotalPages = 0;
+        let routesSortField = 'created_at';
+        let routesSortOrder = 'desc'; // desc 或 asc
         
         function initRoutesPagination() {
             const rows = document.querySelectorAll('#routes-table tbody tr');
@@ -1920,11 +1977,71 @@
             });
         }
         
-        // 请求历史分页
+        // 路由排序功能
+        function sortRoutes(field) {
+            // 如果点击的是当前排序字段，切换排序顺序
+            if (routesSortField === field) {
+                routesSortOrder = routesSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // 否则，设置新的排序字段，默认升序
+                routesSortField = field;
+                routesSortOrder = 'asc';
+            }
+            
+            // 更新排序图标
+            document.querySelectorAll('.sort-icon').forEach(icon => {
+                if (icon.dataset.field === field) {
+                    icon.textContent = routesSortOrder === 'asc' ? '▲' : '▼';
+                    icon.classList.add('active');
+                } else {
+                    icon.textContent = '▲';
+                    icon.classList.remove('active');
+                }
+            });
+            
+            // 重置到第一页
+            routesCurrentPage = 1;
+            
+            // 重新获取排序后的数据
+            updateRoutesList();
+        }
+        
+        // 请求历史分页和排序
         let requestsCurrentPage = 1;
         let requestsPageSize = 10;
         let requestsTotalItems = 0;
         let requestsTotalPages = 0;
+        let requestsSortField = 'timestamp';
+        let requestsSortOrder = 'desc'; // desc 或 asc
+        
+        // 请求历史排序功能
+        function sortRequests(field) {
+            // 如果点击的是当前排序字段，切换排序顺序
+            if (requestsSortField === field) {
+                requestsSortOrder = requestsSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // 否则，设置新的排序字段，默认升序
+                requestsSortField = field;
+                requestsSortOrder = 'asc';
+            }
+            
+            // 更新排序图标
+            document.querySelectorAll('#requests-table .sort-icon').forEach(icon => {
+                if (icon.dataset.field === field) {
+                    icon.textContent = requestsSortOrder === 'asc' ? '▲' : '▼';
+                    icon.classList.add('active');
+                } else {
+                    icon.textContent = '▲';
+                    icon.classList.remove('active');
+                }
+            });
+            
+            // 重置到第一页
+            requestsCurrentPage = 1;
+            
+            // 重新获取排序后的数据
+            updateRequestsList();
+        }
         
         function initRequestsPagination() {
             const rows = document.querySelectorAll('#requests-table tbody tr');
