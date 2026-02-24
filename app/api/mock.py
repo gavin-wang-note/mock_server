@@ -395,6 +395,19 @@ def get_request_history(limit: int = 1000, offset: int = 0, start_time: Optional
     # 从数据库中获取请求历史，传入时间范围过滤
     return db_storage.get_requests(limit=limit, offset=offset, start_time=start_time, end_time=end_time)
 
+def get_request_history_count(start_time: Optional[float] = None, end_time: Optional[float] = None) -> int:
+    """获取请求历史总数
+    
+    Args:
+        start_time: 开始时间戳
+        end_time: 结束时间戳
+        
+    Returns:
+        请求历史总数
+    """
+    # 从数据库中获取请求历史总数，传入时间范围过滤
+    return db_storage.get_requests_count(start_time=start_time, end_time=end_time)
+
 
 def get_response_history():
     """获取响应历史"""

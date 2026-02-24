@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
         <meta charset="UTF-8">
@@ -387,7 +387,7 @@
             <h2>路由管理</h2>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="openCreateRouteModal()">创建新路由</button>
+                    <button class="btn btn-primary" onclick="openCreateRouteModal()">新增路由</button>
                     <button class="btn btn-secondary" onclick="importRoutes()">导入路由</button>
                     <button class="btn btn-success" onclick="exportRoutes()">导出路由</button>
                     <button class="btn btn-danger" id="batch-delete-btn" onclick="batchDeleteRoutes()" disabled>批量删除</button>
@@ -448,21 +448,21 @@
             </table>
             
             <!-- 分页控件 -->
-            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <label>每页显示：</label>
-                    <select id="routes-page-size" onchange="changeRoutesPageSize()">
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;">
+                <div style="display: flex; align-items: center; white-space: nowrap;">
+                    <label style="margin-right: 10px; white-space: nowrap;">每页显示：</label>
+                    <select id="routes-page-size" onchange="changeRoutesPageSize()" style="margin-right: 10px;">
                         <option value="10">10</option>
                         <option value="20">20</option>
                         <option value="50">50</option>
                     </select>
                 </div>
-                <div>
+                <div style="display: flex; align-items: center;">
                     <button class="btn btn-secondary" onclick="changeRoutesPage(1)" id="routes-first-page">首页</button>
-                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesCurrentPage - 1)" id="routes-prev-page">上一页</button>
-                    <span id="routes-page-info">第 1 页，共 1 页</span>
-                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesCurrentPage + 1)" id="routes-next-page">下一页</button>
-                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesTotalPages)" id="routes-last-page">末页</button>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesPagination.currentPage - 1)" id="routes-prev-page">上一页</button>
+                    <span id="routes-page-info" style="margin: 0 10px;">第 1 页，共 1 页，共 0 条</span>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesPagination.currentPage + 1)" id="routes-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeRoutesPage(routesPagination.totalPages)" id="routes-last-page">末页</button>
                 </div>
             </div>
         </div>
@@ -528,21 +528,21 @@
             </table>
             
             <!-- 分页控件 -->
-            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <label>每页显示：</label>
-                    <select id="requests-page-size" onchange="changeRequestsPageSize()">
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;">
+                <div style="display: flex; align-items: center; white-space: nowrap;">
+                    <label style="margin-right: 10px; white-space: nowrap;">每页显示：</label>
+                    <select id="requests-page-size" onchange="changeRequestsPageSize()" style="margin-right: 10px;">
                         <option value="10">10</option>
                         <option value="20">20</option>
                         <option value="50">50</option>
                     </select>
                 </div>
-                <div>
+                <div style="display: flex; align-items: center;">
                     <button class="btn btn-secondary" onclick="changeRequestsPage(1)" id="requests-first-page">首页</button>
-                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsCurrentPage - 1)" id="requests-prev-page">上一页</button>
-                    <span id="requests-page-info">第 1 页，共 1 页</span>
-                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsCurrentPage + 1)" id="requests-next-page">下一页</button>
-                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsTotalPages)" id="requests-last-page">末页</button>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsPagination.currentPage - 1)" id="requests-prev-page">上一页</button>
+                    <span id="requests-page-info" style="margin: 0 10px;">第 1 页，共 1 页，共 0 条</span>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsPagination.currentPage + 1)" id="requests-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeRequestsPage(requestsPagination.totalPages)" id="requests-last-page">末页</button>
                 </div>
             </div>
         </div>
@@ -697,7 +697,7 @@
     <div id="create-route-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeCreateRouteModal()">&times;</span>
-            <h2>创建新路由</h2>
+            <h2>新增路由</h2>
             <form id="create-route-form">
                 <div class="form-group">
                     <label>路由名称</label>
@@ -823,11 +823,11 @@
         
         // 更新路由列表
         function updateRoutesList() {
-            const offset = (routesCurrentPage - 1) * routesPageSize;
+            const offset = (routesPagination.currentPage - 1) * routesPagination.pageSize;
             
             // 构建查询参数
             let queryParams = new URLSearchParams();
-            queryParams.append('limit', routesPageSize);
+            queryParams.append('limit', routesPagination.pageSize);
             queryParams.append('offset', offset);
             queryParams.append('sort', routesSortField);
             queryParams.append('order', routesSortOrder);
@@ -851,16 +851,13 @@
                     row.innerHTML = `
                         <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
                             <p>暂无路由数据</p>
-                            <p style="margin-top: 10px;">点击"创建新路由"按钮添加第一条路由</p>
+                            <p style="margin-top: 10px;">点击"新增路由"按钮添加第一条路由</p>
                         </td>
                     `;
                     tbody.appendChild(row);
                     
                     // 更新分页信息
-                    routesTotalItems = 0;
-                    routesTotalPages = 1;
-                    routesCurrentPage = 1;
-                    updateRoutesPaginationUI();
+                    routesPagination.updatePaginationInfo(0);
                 } else {
                     // 显示路由列表
                     routesArray.forEach(route => {
@@ -887,12 +884,7 @@
                     });
                     
                     // 更新分页信息
-                    routesTotalItems = data.total || routesArray.length;
-                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
-                    if (routesCurrentPage > routesTotalPages) {
-                        routesCurrentPage = Math.max(1, routesTotalPages);
-                    }
-                    updateRoutesPaginationUI();
+                    routesPagination.updatePaginationInfo(data.total || routesArray.length);
                 }
             })
             .catch(error => {
@@ -973,6 +965,20 @@
             const status = parseInt(document.getElementById('route-status').value);
             const content = document.getElementById('route-content').value;
             const delay = parseFloat(document.getElementById('route-delay').value);
+            
+            // 验证必填项
+            if (!path) {
+                showToast('路径不能为空', 'error');
+                return;
+            }
+            if (methods.length === 0 || methods[0] === '') {
+                showToast('HTTP方法不能为空', 'error');
+                return;
+            }
+            if (!content) {
+                showToast('响应内容不能为空', 'error');
+                return;
+            }
             
             let routeContent;
             try {
@@ -1057,9 +1063,25 @@
             const path = document.getElementById('edit-route-path').value;
             const methods = document.getElementById('edit-route-methods').value.split(',').map(m => m.trim());
             const status = parseInt(document.getElementById('edit-route-status').value);
+            const contentStr = document.getElementById('edit-route-content').value;
+            
+            // 验证必填项
+            if (!path) {
+                showToast('路径不能为空', 'error');
+                return;
+            }
+            if (methods.length === 0 || methods[0] === '') {
+                showToast('HTTP方法不能为空', 'error');
+                return;
+            }
+            if (!contentStr) {
+                showToast('响应内容不能为空', 'error');
+                return;
+            }
+            
             let content;
             try {
-                content = JSON.parse(document.getElementById('edit-route-content').value);
+                content = JSON.parse(contentStr);
             } catch (e) {
                 showToast('响应内容必须是有效的JSON格式', 'error');
                 return;
@@ -1199,11 +1221,11 @@
             }
             
             // 添加分页参数
-            queryParams.append('limit', routesPageSize);
+            queryParams.append('limit', routesPagination.pageSize);
             queryParams.append('offset', 0); // 重置为第一页
             
             // 重置页码
-            routesCurrentPage = 1;
+            routesPagination.currentPage = 1;
             
             // 从后端获取数据
             fetch(`/admin/routes?${queryParams.toString()}`, {
@@ -1230,10 +1252,7 @@
                     tbody.appendChild(row);
                     
                     // 更新分页信息
-                    routesTotalItems = 0;
-                    routesTotalPages = 1;
-                    routesCurrentPage = 1;
-                    updateRoutesPaginationUI();
+                    routesPagination.updatePaginationInfo(0);
                 } else {
                     // 显示路由列表
                     routes.forEach(route => {
@@ -1260,10 +1279,8 @@
                     });
                     
                     // 更新分页信息
-                    routesTotalItems = data.total || routes.length;
-                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
-                    routesCurrentPage = 1;
-                    updateRoutesPaginationUI();
+                    routesPagination.currentPage = 1;
+                    routesPagination.updatePaginationInfo(data.total || routes.length);
                 }
             })
             .catch(error => {
@@ -1451,11 +1468,8 @@
             }
             
             // 添加分页参数
-            queryParams.append('limit', requestsPageSize);
-            queryParams.append('offset', 0); // 重置为第一页
-            
-            // 重置页码
-            requestsCurrentPage = 1;
+            queryParams.append('limit', requestsPagination.pageSize);
+            queryParams.append('offset', (requestsPagination.currentPage - 1) * requestsPagination.pageSize);
             
             // 从后端获取过滤后的数据
             fetch(`/admin/requests?${queryParams.toString()}`, {
@@ -1482,9 +1496,7 @@
                     tbody.appendChild(row);
                     
                     // 更新分页信息
-                    requestsTotalItems = 0;
-                    requestsTotalPages = 1;
-                    updateRequestsPaginationUI();
+                    requestsPagination.updatePaginationInfo(data.total || 0);
                 } else {
                     // 显示请求历史列表
                     requests.forEach(req => {
@@ -1504,9 +1516,7 @@
                     });
                     
                     // 更新分页信息
-                    requestsTotalItems = data.total || requests.length;
-                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
-                    updateRequestsPaginationUI();
+                    requestsPagination.updatePaginationInfo(data.total || requests.length);
                 }
             })
             .catch(error => {
@@ -1542,11 +1552,11 @@
         
         // 更新请求历史列表
         function updateRequestsList() {
-            const offset = (requestsCurrentPage - 1) * requestsPageSize;
+            const offset = (requestsPagination.currentPage - 1) * requestsPagination.pageSize;
             
             // 构建查询参数
             let queryParams = new URLSearchParams();
-            queryParams.append('limit', requestsPageSize);
+            queryParams.append('limit', requestsPagination.pageSize);
             queryParams.append('offset', offset);
             queryParams.append('sort', requestsSortField);
             queryParams.append('order', requestsSortOrder);
@@ -1575,9 +1585,7 @@
                     tbody.appendChild(row);
                     
                     // 更新分页信息
-                    requestsTotalItems = 0;
-                    requestsTotalPages = 1;
-                    updateRequestsPaginationUI();
+                    requestsPagination.updatePaginationInfo(data.total || 0);
                 } else {
                     // 显示请求历史列表
                     requests.forEach(req => {
@@ -1597,9 +1605,7 @@
                     });
                     
                     // 更新分页信息
-                    requestsTotalItems = data.total || requests.length;
-                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
-                    updateRequestsPaginationUI();
+                    requestsPagination.updatePaginationInfo(data.total || requests.length);
                 }
             })
             .catch(error => {
@@ -1847,37 +1853,135 @@
                 // 显示对应内容
                 const targetId = this.getAttribute('href').substring(1) + '-tab';
                 document.getElementById(targetId).style.display = 'block';
+                
+                // 触发对应页面的分页信息更新
+                const tabName = this.getAttribute('href').substring(1);
+                if (tabName === 'routes') {
+                    // 确保路由管理的分页信息正确
+                    initRoutesPagination();
+                } else if (tabName === 'requests') {
+                    // 确保请求历史的分页信息正确
+                    updateRequestsList();
+                }
             });
         });
         
-        // 路由管理分页和排序
-        let routesCurrentPage = 1;
-        let routesPageSize = 10;
-        let routesTotalItems = 0;
-        let routesTotalPages = 0;
+        // 通用分页管理器
+        class PaginationManager {
+            constructor(name, apiPath, tableId, pageSizeId, pageInfoId, firstPageId, prevPageId, nextPageId, lastPageId, sortable = false) {
+                this.name = name;
+                this.apiPath = apiPath;
+                this.tableId = tableId;
+                this.pageSizeId = pageSizeId;
+                this.pageInfoId = pageInfoId;
+                this.firstPageId = firstPageId;
+                this.prevPageId = prevPageId;
+                this.nextPageId = nextPageId;
+                this.lastPageId = lastPageId;
+                this.sortable = sortable;
+                
+                // 分页状态
+                this.currentPage = 1;
+                this.pageSize = 10;
+                this.totalItems = 0;
+                this.totalPages = 1;
+                this.sortField = sortable ? 'created_at' : '';
+                this.sortOrder = sortable ? 'desc' : '';
+                
+                // 回调函数
+                this.onPageChange = null;
+                this.onPageSizeChange = null;
+            }
+            
+            // 更新分页UI
+            updatePaginationUI() {
+                document.getElementById(this.pageInfoId).textContent = `第 ${this.currentPage} 页，共 ${this.totalPages} 页，共 ${this.totalItems} 条`;
+                document.getElementById(this.prevPageId).disabled = this.currentPage === 1;
+                document.getElementById(this.firstPageId).disabled = this.currentPage === 1;
+                document.getElementById(this.nextPageId).disabled = this.currentPage === this.totalPages;
+                document.getElementById(this.lastPageId).disabled = this.currentPage === this.totalPages;
+            }
+            
+            // 改变页码
+            changePage(page) {
+                if (page >= 1 && page <= this.totalPages) {
+                    this.currentPage = page;
+                    this.updatePaginationUI();
+                    // 回调函数，由具体实现提供
+                    if (this.onPageChange) {
+                        this.onPageChange();
+                    }
+                }
+            }
+            
+            // 改变每页大小
+            changePageSize() {
+                this.pageSize = parseInt(document.getElementById(this.pageSizeId).value);
+                this.currentPage = 1;
+                this.updatePaginationUI();
+                // 回调函数，由具体实现提供
+                if (this.onPageSizeChange) {
+                    this.onPageSizeChange();
+                }
+            }
+            
+            // 计算偏移量
+            getOffset() {
+                return (this.currentPage - 1) * this.pageSize;
+            }
+            
+            // 更新分页信息
+            updatePaginationInfo(totalItems) {
+                this.totalItems = totalItems;
+                this.totalPages = Math.ceil(this.totalItems / this.pageSize);
+                // 确保当前页码不超过总页数
+                if (this.currentPage > this.totalPages) {
+                    this.currentPage = Math.max(1, this.totalPages);
+                }
+                this.updatePaginationUI();
+            }
+        }
+        
+        // 初始化分页管理器
+        const routesPagination = new PaginationManager(
+            'routes',
+            '/admin/routes',
+            'routes-table',
+            'routes-page-size',
+            'routes-page-info',
+            'routes-first-page',
+            'routes-prev-page',
+            'routes-next-page',
+            'routes-last-page',
+            true
+        );
+        
+        // 设置路由分页回调
+        routesPagination.onPageChange = function() {
+            updateRoutesList();
+        };
+        
+        routesPagination.onPageSizeChange = function() {
+            updateRoutesList();
+        };
+        
+        // 路由排序相关变量
         let routesSortField = 'created_at';
-        let routesSortOrder = 'desc'; // desc 或 asc
+        let routesSortOrder = 'desc';
         
         function initRoutesPagination() {
             const rows = document.querySelectorAll('#routes-table tbody tr');
-            routesTotalItems = rows.length;
-            routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
-            updateRoutesPaginationUI();
-            applyRoutesPagination();
+            routesPagination.updatePaginationInfo(rows.length);
         }
         
         function updateRoutesPaginationUI() {
-            document.getElementById('routes-page-info').textContent = `第 ${routesCurrentPage} 页，共 ${routesTotalPages} 页`;
-            document.getElementById('routes-prev-page').disabled = routesCurrentPage === 1;
-            document.getElementById('routes-first-page').disabled = routesCurrentPage === 1;
-            document.getElementById('routes-next-page').disabled = routesCurrentPage === routesTotalPages;
-            document.getElementById('routes-last-page').disabled = routesCurrentPage === routesTotalPages;
+            routesPagination.updatePaginationUI();
         }
         
         function applyRoutesPagination() {
             const rows = document.querySelectorAll('#routes-table tbody tr');
-            const startIndex = (routesCurrentPage - 1) * routesPageSize;
-            const endIndex = startIndex + routesPageSize;
+            const startIndex = (routesPagination.currentPage - 1) * routesPagination.pageSize;
+            const endIndex = startIndex + routesPagination.pageSize;
             
             rows.forEach((row, index) => {
                 if (index >= startIndex && index < endIndex) {
@@ -1889,92 +1993,11 @@
         }
         
         function changeRoutesPage(page) {
-            if (page >= 1 && page <= routesTotalPages) {
-                routesCurrentPage = page;
-                updateRoutesPaginationUI();
-                updateRoutesList();
-            }
+            routesPagination.changePage(page);
         }
         
         function changeRoutesPageSize() {
-            routesPageSize = parseInt(document.getElementById('routes-page-size').value);
-            routesCurrentPage = 1;
-            
-            // 重新获取数据，应用新的每页大小
-            const searchTerm = document.getElementById('route-search').value;
-            
-            // 构建查询参数
-            let queryParams = new URLSearchParams();
-            if (searchTerm) {
-                queryParams.append('search', searchTerm);
-            }
-            
-            // 添加分页参数
-            queryParams.append('limit', routesPageSize);
-            queryParams.append('offset', 0); // 重置为第一页
-            
-            // 从后端获取数据
-            fetch(`/admin/routes?${queryParams.toString()}`, {
-                headers: {
-                    'Authorization': 'Bearer mock_server_admin_token'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.querySelector('#routes-table tbody');
-                tbody.innerHTML = '';
-                
-                const routes = data.items || [];
-                
-                if (routes.length === 0) {
-                    // 显示空数据提示
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
-                            <p>暂无路由数据</p>
-                            <p style="margin-top: 10px;">点击"创建新路由"按钮添加第一条路由</p>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                    
-                    // 更新分页信息
-                    routesTotalItems = 0;
-                    routesTotalPages = 1;
-                    updateRoutesPaginationUI();
-                } else {
-                    // 显示路由列表
-                    routes.forEach(route => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><input type="checkbox" class="route-checkbox" data-id="${route.id}" onchange="updateBatchDeleteButton()"></td>
-                            <td>${route.id.substring(0, 8)}...</td>
-                            <td>${route.name}</td>
-                            <td>${route.match_rule ? route.match_rule.path : ''}</td>
-                            <td>${route.match_rule ? route.match_rule.methods.join(', ') : ''}</td>
-                            <td>
-                                <span class="status-badge ${route.enabled ? 'status-enabled' : 'status-disabled'}">
-                                    ${route.enabled ? '启用' : '禁用'}
-                                </span>
-                            </td>
-                            <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
-                            <td>
-                                <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
-                                <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
-                                <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    
-                    // 更新分页信息
-                    routesTotalItems = data.total || routes.length;
-                    routesTotalPages = Math.ceil(routesTotalItems / routesPageSize);
-                    updateRoutesPaginationUI();
-                }
-            })
-            .catch(error => {
-                showToast('更新路由列表失败：' + error.message, 'error');
-            });
+            routesPagination.changePageSize();
         }
         
         // 路由排序功能
@@ -2000,19 +2023,38 @@
             });
             
             // 重置到第一页
-            routesCurrentPage = 1;
+            routesPagination.changePage(1);
             
             // 重新获取排序后的数据
             updateRoutesList();
         }
         
-        // 请求历史分页和排序
-        let requestsCurrentPage = 1;
-        let requestsPageSize = 10;
-        let requestsTotalItems = 0;
-        let requestsTotalPages = 0;
+        // 初始化请求历史分页管理器
+        const requestsPagination = new PaginationManager(
+            'requests',
+            '/admin/requests',
+            'requests-table',
+            'requests-page-size',
+            'requests-page-info',
+            'requests-first-page',
+            'requests-prev-page',
+            'requests-next-page',
+            'requests-last-page',
+            true
+        );
+        
+        // 设置请求历史分页回调
+        requestsPagination.onPageChange = function() {
+            updateRequestsList();
+        };
+        
+        requestsPagination.onPageSizeChange = function() {
+            updateRequestsList();
+        };
+        
+        // 请求历史排序相关变量
         let requestsSortField = 'timestamp';
-        let requestsSortOrder = 'desc'; // desc 或 asc
+        let requestsSortOrder = 'desc';
         
         // 请求历史排序功能
         function sortRequests(field) {
@@ -2037,7 +2079,7 @@
             });
             
             // 重置到第一页
-            requestsCurrentPage = 1;
+            requestsPagination.changePage(1);
             
             // 重新获取排序后的数据
             updateRequestsList();
@@ -2045,24 +2087,17 @@
         
         function initRequestsPagination() {
             const rows = document.querySelectorAll('#requests-table tbody tr');
-            requestsTotalItems = rows.length;
-            requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
-            updateRequestsPaginationUI();
-            applyRequestsPagination();
+            requestsPagination.updatePaginationInfo(rows.length);
         }
         
         function updateRequestsPaginationUI() {
-            document.getElementById('requests-page-info').textContent = `第 ${requestsCurrentPage} 页，共 ${requestsTotalPages} 页`;
-            document.getElementById('requests-prev-page').disabled = requestsCurrentPage === 1;
-            document.getElementById('requests-first-page').disabled = requestsCurrentPage === 1;
-            document.getElementById('requests-next-page').disabled = requestsCurrentPage === requestsTotalPages;
-            document.getElementById('requests-last-page').disabled = requestsCurrentPage === requestsTotalPages;
+            requestsPagination.updatePaginationUI();
         }
         
         function applyRequestsPagination() {
             const rows = document.querySelectorAll('#requests-table tbody tr');
-            const startIndex = (requestsCurrentPage - 1) * requestsPageSize;
-            const endIndex = startIndex + requestsPageSize;
+            const startIndex = (requestsPagination.currentPage - 1) * requestsPagination.pageSize;
+            const endIndex = startIndex + requestsPagination.pageSize;
             
             rows.forEach((row, index) => {
                 if (index >= startIndex && index < endIndex) {
@@ -2074,14 +2109,11 @@
         }
         
         function changeRequestsPage(page) {
-            if (page >= 1 && page <= requestsTotalPages) {
-                requestsCurrentPage = page;
-                updateRequestsPaginationUI();
-                updateRequestsList();
-            }
+            requestsPagination.changePage(page);
         }
         
         function changeRequestsPageSize() {
+            requestsPagination.changePageSize();
             requestsPageSize = parseInt(document.getElementById('requests-page-size').value);
             requestsCurrentPage = 1;
             
@@ -2131,8 +2163,12 @@
                     tbody.appendChild(row);
                     
                     // 更新分页信息
-                    requestsTotalItems = 0;
-                    requestsTotalPages = 1;
+                    requestsTotalItems = data.total || 0;
+                    requestsTotalPages = Math.ceil(requestsTotalItems / requestsPageSize);
+                    // 确保当前页码不超过总页数
+                    if (requestsCurrentPage > requestsTotalPages) {
+                        requestsCurrentPage = Math.max(1, requestsTotalPages);
+                    }
                     updateRequestsPaginationUI();
                 } else {
                     // 显示请求历史列表
@@ -2495,8 +2531,10 @@
         
         // 初始化分页
         document.addEventListener('DOMContentLoaded', function() {
-            initRoutesPagination();
-            initRequestsPagination();
+            // 首次加载路由列表
+            updateRoutesList();
+            // 首次加载请求历史列表
+            updateRequestsList();
             
             // 确保 Chart.js 加载完成后再初始化图表
             function checkChartLoaded() {

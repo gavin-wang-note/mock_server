@@ -183,6 +183,46 @@ class DatabaseStorage:
         finally:
             self._close_connection(conn)
     
+    def get_requests_count(self, start_time: Optional[float] = None, end_time: Optional[float] = None) -> int:
+        """获取请求记录总数
+        
+        Args:
+            start_time: 开始时间戳
+            end_time: 结束时间戳
+            
+        Returns:
+            请求记录总数
+        """
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # 构建查询语句
+            query = 'SELECT COUNT(*) FROM requests '
+            params = []
+            
+            # 添加时间范围过滤
+            if start_time is not None or end_time is not None:
+                query += 'WHERE '
+                if start_time is not None:
+                    query += 'timestamp >= ? '
+                    params.append(start_time)
+                if start_time is not None and end_time is not None:
+                    query += 'AND '
+                if end_time is not None:
+                    query += 'timestamp <= ? '
+                    params.append(end_time)
+            
+            cursor.execute(query, params)
+            count = cursor.fetchone()[0]
+            return count
+        except Exception as e:
+            print(f"获取请求记录总数失败: {e}")
+            return 0
+        finally:
+            self._close_connection(conn)
+    
     def get_requests(self, limit: int = 1000, offset: int = 0, start_time: Optional[float] = None, end_time: Optional[float] = None) -> List[RequestModel]:
         """获取请求记录
         

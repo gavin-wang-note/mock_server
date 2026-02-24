@@ -309,7 +309,7 @@ curl -X POST http://localhost:8080/api/users \
 | 方法 | 路径 | 描述 |
 |------|------|------|
 | GET | /admin/routes | 获取所有路由 |
-| POST | /admin/routes | 创建新路由 |
+| POST | /admin/routes | 新增路由 |
 | GET | /admin/routes/{route_id} | 获取指定路由 |
 | PUT | /admin/routes/{route_id} | 更新路由 |
 | DELETE | /admin/routes/{route_id} | 删除路由 |

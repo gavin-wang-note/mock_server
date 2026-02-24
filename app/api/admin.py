@@ -7,7 +7,7 @@ import uuid
 import os
 from app.models.route import Route, RouteCreate, RouteUpdate
 from app.models.request import Request as RequestModel, RequestFilter
-from app.api.mock import add_route, remove_route, update_route, get_all_routes, get_request_history, get_response_history
+from app.api.mock import add_route, remove_route, update_route, get_all_routes, get_request_history, get_request_history_count, get_response_history
 from app.core.security import authenticate_user, create_access_token
 from app.core.config import config
 
@@ -171,7 +171,7 @@ async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: in
 
 @router.post("/admin/routes", response_model=Route)
 async def create_route(route_create: RouteCreate, current_user: dict = Depends(get_current_user)):
-    """创建新路由"""
+    """新增路由"""
     # 生成路由ID
     route_id = str(uuid.uuid4())
     
@@ -276,7 +276,7 @@ async def get_requests(
         end_time = time.time()
     
     # 获取请求历史，传入时间范围过滤
-    requests = get_request_history(limit=limit * 2, offset=offset, start_time=start_time, end_time=end_time)
+    requests = get_request_history(limit=limit, offset=offset, start_time=start_time, end_time=end_time)
     
     # 应用过滤
     if method:
@@ -303,9 +303,8 @@ async def get_requests(
         elif sort == "client_ip":
             requests.sort(key=lambda x: x.client_ip, reverse=reverse)
     
-    # 应用分页
-    total = len(requests)
-    requests = requests[offset:offset + limit]
+    # 获取总记录数
+    total = get_request_history_count(start_time=start_time, end_time=end_time)
     
     return {
         "items": requests,
