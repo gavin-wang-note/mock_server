@@ -1184,6 +1184,8 @@
                 .then(results => {
                     showToast(`成功删除 ${results.length} 个路由！`);
                     updateRoutesList();
+                    // 取消全选复选框的勾选状态
+                    document.getElementById('select-all-routes').checked = false;
                 })
                 .catch(error => {
                     showToast('批量删除失败：' + error.message, 'error');
