@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
         <meta charset="UTF-8">
@@ -171,12 +171,64 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+            table-layout: auto;
         }
         
         th, td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        /* 优化表格列宽 */
+        #routes-table th:nth-child(1),
+        #routes-table td:nth-child(1) {
+            width: 50px;
+            text-align: center;
+        }
+        
+        #routes-table th:nth-child(2),
+        #routes-table td:nth-child(2) {
+            width: 100px;
+        }
+        
+        #routes-table th:nth-child(3),
+        #routes-table td:nth-child(3) {
+            width: 150px;
+        }
+        
+        #routes-table th:nth-child(4),
+        #routes-table td:nth-child(4) {
+            width: 200px;
+        }
+        
+        #routes-table th:nth-child(5),
+        #routes-table td:nth-child(5) {
+            width: 100px;
+        }
+        
+        #routes-table th:nth-child(6),
+        #routes-table td:nth-child(6) {
+            width: 80px;
+        }
+        
+        #routes-table th:nth-child(7),
+        #routes-table td:nth-child(7) {
+            width: 150px;
+        }
+        
+        #routes-table th:nth-child(8),
+        #routes-table td:nth-child(8) {
+            width: 200px;
+        }
+        
+        /* 允许名称、路径和标签列自动换行 */
+        #routes-table td:nth-child(3),
+        #routes-table td:nth-child(4),
+        #routes-table td:nth-child(8) {
+            word-wrap: break-word;
+            white-space: normal;
         }
         
         th {
@@ -225,12 +277,12 @@
         
         .modal-content {
             background-color: #fefefe;
-            margin: 10% auto;
+            margin: 5% auto;
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
-            max-width: 600px;
-            max-height: 80vh;
+            max-width: 800px;
+            max-height: 90vh;
             overflow-y: auto;
             border-radius: 5px;
         }
@@ -344,6 +396,10 @@
             background-color: #2196F3;
         }
         
+        .toast.warning {
+            background-color: #ff9800;
+        }
+        
         /* 排序样式 */
         .sortable {
             cursor: pointer;
@@ -364,6 +420,63 @@
             color: #007bff;
             font-weight: bold;
         }
+        
+        /* 帮助提示样式 */
+        .help-tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+        }
+        
+        .help-tooltip .help-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+            cursor: help;
+        }
+        
+        .help-tooltip .help-text {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 0;
+            margin-left: 0;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        
+        .help-tooltip:hover .help-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .help-tooltip .help-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 10px;
+            margin-left: 0;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
     </style>
 </head>
 <body>
@@ -376,6 +489,8 @@
         <nav>
             <ul>
                 <li><a href="#routes" class="tab-link active">路由管理</a></li>
+                <li><a href="#groups" class="tab-link">分组管理</a></li>
+                <li><a href="#tags" class="tab-link">标签管理</a></li>
                 <li><a href="#requests" class="tab-link">请求历史</a></li>
                 <li><a href="#config" class="tab-link">服务配置</a></li>
                 <li><a href="#status" class="tab-link">服务状态</a></li>
@@ -390,7 +505,7 @@
                     <button class="btn btn-primary" onclick="openCreateRouteModal()">新增路由</button>
                     <button class="btn btn-secondary" onclick="importRoutes()">导入路由</button>
                     <button class="btn btn-success" onclick="exportRoutes()">导出路由</button>
-                    <button class="btn btn-danger" id="batch-delete-btn" onclick="batchDeleteRoutes()" disabled>批量删除</button>
+                    <button class="btn btn-danger" id="batch-delete-btn" onclick="batchDeleteRoutes()">批量删除</button>
                 </div>
                 <div>
                     <input type="text" id="route-search" placeholder="搜索路由..." style="padding: 8px; width: 200px;">
@@ -581,6 +696,108 @@
             </form>
         </div>
         
+        <!-- 分组管理 -->
+        <div class="tab-content" id="groups-tab" style="display: none;">
+            <h2>分组管理</h2>        
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <button class="btn btn-primary" onclick="openCreateGroupModal()">新增分组</button>
+                    <button class="btn btn-danger" id="batch-delete-groups-btn" onclick="batchDeleteGroups()">批量删除</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="group-search" placeholder="搜索分组..." style="padding: 8px; width: 200px;">
+                    <button class="btn btn-secondary" onclick="searchGroupsPage()">搜索</button>
+                    <button class="btn btn-primary" onclick="resetGroupSearch()">重置</button>
+                </div>
+            </div>
+            
+            <table id="groups-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all-groups" onchange="toggleSelectAllGroups(this)"></th>
+                        <th>分组名称</th>
+                        <th>使用次数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- 分页控件 -->
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;">
+                <div style="display: flex; align-items: center; white-space: nowrap;">
+                    <label style="margin-right: 10px; white-space: nowrap;">每页显示：</label>
+                    <select id="groups-page-size" onchange="changeGroupsPageSize()" style="margin-right: 10px;">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <button class="btn btn-secondary" onclick="changeGroupsPage(1)" id="groups-first-page">首页</button>
+                    <button class="btn btn-secondary" onclick="changeGroupsPage(groupsPagination.currentPage - 1)" id="groups-prev-page">上一页</button>
+                    <span id="groups-page-info" style="margin: 0 10px;">第 1 页，共 1 页，共 0 条</span>
+                    <button class="btn btn-secondary" onclick="changeGroupsPage(groupsPagination.currentPage + 1)" id="groups-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeGroupsPage(groupsPagination.totalPages)" id="groups-last-page">末页</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 标签管理 -->
+        <div class="tab-content" id="tags-tab" style="display: none;">
+            <h2>标签管理</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <button class="btn btn-primary" onclick="openCreateTagModal()">新增标签</button>
+                    <button class="btn btn-danger" id="batch-delete-tags-btn" onclick="batchDeleteTags()">批量删除</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="tag-search" placeholder="搜索标签..." style="padding: 8px; width: 200px;">
+                    <button class="btn btn-secondary" onclick="searchTagsPage()">搜索</button>
+                    <button class="btn btn-primary" onclick="resetTagSearch()">重置</button>
+                </div>
+            </div>
+            
+            <table id="tags-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all-tags" onchange="toggleSelectAllTags(this)"></th>
+                        <th>标签名称</th>
+                        <th>使用次数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- 分页控件 -->
+            <div class="pagination-controls" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;">
+                <div style="display: flex; align-items: center; white-space: nowrap;">
+                    <label style="margin-right: 10px; white-space: nowrap;">每页显示：</label>
+                    <select id="tags-page-size" onchange="changeTagsPageSize()" style="margin-right: 10px;">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <button class="btn btn-secondary" onclick="changeTagsPage(1)" id="tags-first-page">首页</button>
+                    <button class="btn btn-secondary" onclick="changeTagsPage(tagsPagination.currentPage - 1)" id="tags-prev-page">上一页</button>
+                    <span id="tags-page-info" style="margin: 0 10px;">第 1 页，共 1 页，共 0 条</span>
+                    <button class="btn btn-secondary" onclick="changeTagsPage(tagsPagination.currentPage + 1)" id="tags-next-page">下一页</button>
+                    <button class="btn btn-secondary" onclick="changeTagsPage(tagsPagination.totalPages)" id="tags-last-page">末页</button>
+                </div>
+            </div>
+        </div>
+        
         <!-- 服务状态 -->
         <div class="tab-content" id="status-tab" style="display: none;">
             <h2>服务状态</h2>
@@ -723,6 +940,56 @@
                     <label>响应延迟 (秒)</label>
                     <input type="number" id="route-delay" value="0" step="0.1">
                 </div>
+                <div class="form-group">
+                    <label>
+                        路由分组
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">用于对路由进行分类管理，便于快速查找和组织相关路由。
+可以输入新的分组名称或选择现有分组。</span>
+                        </div>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="route-group" placeholder="输入分组名称或选择现有分组" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" oninput="searchGroups('route-group')" onfocus="showGroupDropdown('route-group')" onblur="hideGroupDropdown('route-group', 200)">
+                        <div id="route-group-dropdown" class="dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 3px; max-height: 200px; overflow-y: auto; display: none; z-index: 1000;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        路由标签
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">用于为路由添加自定义标签，支持多个标签，用逗号分隔。
+可以输入新的标签名称或选择现有标签。</span>
+                        </div>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="route-tags" placeholder="输入标签名称或选择现有标签，多个标签用逗号分隔" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" oninput="searchTags('route-tags')" onfocus="showTagDropdown('route-tags')" onblur="hideTagDropdown('route-tags', 200)">
+                        <div id="route-tags-dropdown" class="dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 3px; max-height: 200px; overflow-y: auto; display: none; z-index: 1000;"></div>
+                    </div>
+                </div>
+                
+                <!-- 响应序列配置 -->
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="route-enable-sequence"> 启用响应序列
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">启用后，路由会按照配置的顺序返回不同的响应。
+每次请求都会返回序列中的下一个响应，循环执行。
+可通过"重置序列"按钮将响应顺序重置为第一个。</span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div id="sequence-config" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 3px; background-color: #f9f9f9;">
+                    <h3>响应序列配置</h3>
+                    <div id="sequence-responses">
+                        <!-- 响应序列项将在这里动态添加 -->
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="addSequenceResponse()" style="margin-top: 10px;">添加响应</button>
+                </div>
+                
                 <button type="button" class="btn btn-primary" onclick="submitCreateRoute()">创建</button>
                 <button type="button" class="btn btn-secondary" onclick="closeCreateRouteModal()">取消</button>
             </form>
@@ -770,14 +1037,130 @@
                     <input type="number" id="edit-route-delay" value="0" step="0.1">
                 </div>
                 <div class="form-group">
+                    <label>
+                        路由分组
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">用于对路由进行分类管理，便于快速查找和组织相关路由。
+可以输入新的分组名称或选择现有分组。</span>
+                        </div>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="edit-route-group" placeholder="输入分组名称或选择现有分组" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" oninput="searchGroups('edit-route-group')" onfocus="showGroupDropdown('edit-route-group')" onblur="hideGroupDropdown('edit-route-group', 200)">
+                        <div id="edit-route-group-dropdown" class="dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 3px; max-height: 200px; overflow-y: auto; display: none; z-index: 1000;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        路由标签
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">用于为路由添加自定义标签，支持多个标签，用逗号分隔。
+可以输入新的标签名称或选择现有标签。</span>
+                        </div>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="edit-route-tags" placeholder="输入标签名称或选择现有标签，多个标签用逗号分隔" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" oninput="searchTags('edit-route-tags')" onfocus="showTagDropdown('edit-route-tags')" onblur="hideTagDropdown('edit-route-tags', 200)">
+                        <div id="edit-route-tags-dropdown" class="dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 3px; max-height: 200px; overflow-y: auto; display: none; z-index: 1000;"></div>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>启用状态</label>
                     <select id="edit-route-enabled">
                         <option value="true">启用</option>
                         <option value="false">禁用</option>
                     </select>
                 </div>
+                
+                <!-- 响应序列配置 -->
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="edit-route-enable-sequence"> 启用响应序列
+                        <div class="help-tooltip">
+                            <span class="help-icon">?</span>
+                            <span class="help-text">启用后，路由会按照配置的顺序返回不同的响应。
+每次请求都会返回序列中的下一个响应，循环执行。
+可通过"重置序列"按钮将响应顺序重置为第一个。</span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div id="edit-sequence-config" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 3px; background-color: #f9f9f9;">
+                    <h3>响应序列配置</h3>
+                    <div id="edit-sequence-responses">
+                        <!-- 响应序列项将在这里动态添加 -->
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="addEditSequenceResponse()" style="margin-top: 10px;">添加响应</button>
+                </div>
+                
                 <button type="button" class="btn btn-primary" onclick="submitEditRoute()">保存</button>
                 <button type="button" class="btn btn-secondary" onclick="closeEditRouteModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 创建分组模态框 -->
+    <div id="create-group-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateGroupModal()">&times;</span>
+            <h2>新增分组</h2>
+            <form id="create-group-form">
+                <div class="form-group">
+                    <label>分组名称</label>
+                    <input type="text" id="group-name" required>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitCreateGroup()">创建</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 编辑分组模态框 -->
+    <div id="edit-group-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditGroupModal()">&times;</span>
+            <h2>编辑分组</h2>
+            <form id="edit-group-form">
+                <input type="hidden" id="edit-group-old-name">
+                <div class="form-group">
+                    <label>分组名称</label>
+                    <input type="text" id="edit-group-name" required>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitEditGroup()">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditGroupModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 创建标签模态框 -->
+    <div id="create-tag-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateTagModal()">&times;</span>
+            <h2>新增标签</h2>
+            <form id="create-tag-form">
+                <div class="form-group">
+                    <label>标签名称</label>
+                    <input type="text" id="tag-name" required>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitCreateTag()">创建</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCreateTagModal()">取消</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 编辑标签模态框 -->
+    <div id="edit-tag-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditTagModal()">&times;</span>
+            <h2>编辑标签</h2>
+            <form id="edit-tag-form">
+                <input type="hidden" id="edit-tag-old-name">
+                <div class="form-group">
+                    <label>标签名称</label>
+                    <input type="text" id="edit-tag-name" required>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="submitEditTag()">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditTagModal()">取消</button>
             </form>
         </div>
     </div>
@@ -875,10 +1258,11 @@
                             </td>
                             <td>${route.created_at ? timestampToDateTime(route.created_at) : ''}</td>
                             <td>
-                                <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
-                                <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
-                                <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
-                            </td>
+                            <button class="btn btn-secondary" onclick="editRoute('${route.id}')">编辑</button>
+                            <button class="btn ${route.enabled ? 'btn-warning' : 'btn-success'}" onclick="toggleRouteStatus('${route.id}', ${!route.enabled})">${route.enabled ? '禁用' : '启用'}</button>
+                            <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">删除</button>
+                            ${route.enable_sequence ? `<button class="btn btn-outline-info" onclick="resetSequenceCounter('${route.id}')">重置序列</button>` : ''}
+                        </td>
                         `;
                         tbody.appendChild(row);
                     });
@@ -953,11 +1337,335 @@
             document.getElementById('create-route-modal').style.display = 'block';
         }
         
+        function loadGroupsToSelect(selectId) {
+            const select = document.getElementById(selectId);
+            // 清空现有选项，保留默认选项
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+            
+            // 加载分组数据
+            fetch('/admin/groups', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const groups = data.items || [];
+                groups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.name;
+                    option.textContent = group.name;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('加载分组失败：', error);
+            });
+        }
+        
+        function loadTagsToSelect(selectId) {
+            const select = document.getElementById(selectId);
+            // 清空现有选项，保留默认选项
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+            
+            // 加载标签数据
+            fetch('/admin/tags', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tags = data.items || [];
+                tags.forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag.name;
+                    option.textContent = tag.name;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('加载标签失败：', error);
+            });
+        }
+        
+        function updateRouteGroupInput() {
+            const select = document.getElementById('route-group-select');
+            const input = document.getElementById('route-group');
+            input.value = select.value;
+        }
+        
+        function addRouteTagFromSelect() {
+            const select = document.getElementById('route-tags-select');
+            const input = document.getElementById('route-tags');
+            const selectedTag = select.value;
+            
+            if (selectedTag) {
+                const existingTags = input.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                if (!existingTags.includes(selectedTag)) {
+                    existingTags.push(selectedTag);
+                    input.value = existingTags.join(', ');
+                }
+                // 重置选择
+                select.value = '';
+            }
+        }
+        
+        function updateEditRouteGroupInput() {
+            const select = document.getElementById('edit-route-group-select');
+            const input = document.getElementById('edit-route-group');
+            input.value = select.value;
+        }
+        
+        function addEditRouteTagFromSelect() {
+            const select = document.getElementById('edit-route-tags-select');
+            const input = document.getElementById('edit-route-tags');
+            const selectedTag = select.value;
+            
+            if (selectedTag) {
+                const existingTags = input.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                if (!existingTags.includes(selectedTag)) {
+                    existingTags.push(selectedTag);
+                    input.value = existingTags.join(', ');
+                }
+                // 重置选择
+                select.value = '';
+            }
+        }
+        
+        // 搜索分组并显示下拉框
+        function searchGroups(inputId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            const query = input.value;
+            
+            if (query.length < 1) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            // 发送搜索请求
+            fetch(`/admin/groups/search?query=${encodeURIComponent(query)}&limit=10`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const groups = data.items || [];
+                
+                // 清空下拉框
+                dropdown.innerHTML = '';
+                
+                if (groups.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                // 添加搜索结果
+                groups.forEach(group => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid #f0f0f0';
+                    item.style.hover = 'background-color: #f5f5f5';
+                    item.textContent = group.name;
+                    item.onclick = () => {
+                        input.value = group.name;
+                        dropdown.style.display = 'none';
+                    };
+                    dropdown.appendChild(item);
+                });
+                
+                // 显示下拉框
+                dropdown.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('搜索分组失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 搜索标签并显示下拉框
+        function searchTags(inputId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            const query = input.value.split(',').pop().trim(); // 获取最后一个标签输入
+            
+            if (query.length < 1) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            // 发送搜索请求
+            fetch(`/admin/tags/search?query=${encodeURIComponent(query)}&limit=10`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tags = data.items || [];
+                
+                // 清空下拉框
+                dropdown.innerHTML = '';
+                
+                if (tags.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                // 添加搜索结果
+                tags.forEach(tag => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid #f0f0f0';
+                    item.style.hover = 'background-color: #f5f5f5';
+                    item.textContent = tag.name;
+                    item.onclick = () => {
+                        const existingTags = input.value.split(',').map(t => t.trim()).filter(t => t);
+                        existingTags.pop(); // 移除最后一个未完成的标签
+                        existingTags.push(tag.name);
+                        input.value = existingTags.join(', ') + ', ';
+                        dropdown.style.display = 'none';
+                    };
+                    dropdown.appendChild(item);
+                });
+                
+                // 显示下拉框
+                dropdown.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('搜索标签失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 显示分组下拉框
+        function showGroupDropdown(inputId) {
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            const input = document.getElementById(inputId);
+            
+            // 加载所有分组
+            fetch('/admin/groups?limit=20', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const groups = data.items || [];
+                
+                // 清空下拉框
+                dropdown.innerHTML = '';
+                
+                if (groups.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                // 添加分组选项
+                groups.forEach(group => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid #f0f0f0';
+                    item.style.hover = 'background-color: #f5f5f5';
+                    item.textContent = group.name;
+                    item.onclick = () => {
+                        input.value = group.name;
+                        dropdown.style.display = 'none';
+                    };
+                    dropdown.appendChild(item);
+                });
+                
+                // 显示下拉框
+                dropdown.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('加载分组失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 显示标签下拉框
+        function showTagDropdown(inputId) {
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            const input = document.getElementById(inputId);
+            
+            // 加载所有标签
+            fetch('/admin/tags?limit=20', {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tags = data.items || [];
+                
+                // 清空下拉框
+                dropdown.innerHTML = '';
+                
+                if (tags.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                // 添加标签选项
+                tags.forEach(tag => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid #f0f0f0';
+                    item.style.hover = 'background-color: #f5f5f5';
+                    item.textContent = tag.name;
+                    item.onclick = () => {
+                        const existingTags = input.value.split(',').map(t => t.trim()).filter(t => t);
+                        if (!existingTags.includes(tag.name)) {
+                            existingTags.push(tag.name);
+                            input.value = existingTags.join(', ') + ', ';
+                        }
+                        dropdown.style.display = 'none';
+                    };
+                    dropdown.appendChild(item);
+                });
+                
+                // 显示下拉框
+                dropdown.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('加载标签失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 隐藏分组下拉框
+        function hideGroupDropdown(inputId, delay = 0) {
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            setTimeout(() => {
+                dropdown.style.display = 'none';
+            }, delay);
+        }
+        
+        // 隐藏标签下拉框
+        function hideTagDropdown(inputId, delay = 0) {
+            const dropdown = document.getElementById(`${inputId}-dropdown`);
+            setTimeout(() => {
+                dropdown.style.display = 'none';
+            }, delay);
+        }
+        
         function closeCreateRouteModal() {
             document.getElementById('create-route-modal').style.display = 'none';
             document.getElementById('create-route-form').reset();
         }
         
+        // 更新创建路由功能，支持分组和标签
         function submitCreateRoute() {
             const name = document.getElementById('route-name').value;
             const path = document.getElementById('route-path').value;
@@ -965,6 +1673,8 @@
             const status = parseInt(document.getElementById('route-status').value);
             const content = document.getElementById('route-content').value;
             const delay = parseFloat(document.getElementById('route-delay').value);
+            const group = document.getElementById('route-group').value;
+            const tags = document.getElementById('route-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
             
             // 验证必填项
             if (!path) {
@@ -988,6 +1698,41 @@
                 return;
             }
             
+            // 处理响应序列配置
+            const enableSequence = document.getElementById('route-enable-sequence').checked;
+            const sequenceResponses = document.getElementById('sequence-responses').children;
+            const responseSequences = [];
+            
+            if (enableSequence) {
+                for (let i = 0; i < sequenceResponses.length; i++) {
+                    const item = sequenceResponses[i];
+                    const statusCode = parseInt(item.querySelector(`input[name="sequence-status-${i}"]`).value);
+                    const contentStr = item.querySelector(`textarea[name="sequence-content-${i}"]`).value;
+                    const seqDelay = parseFloat(item.querySelector(`input[name="sequence-delay-${i}"]`).value);
+                    const description = item.querySelector(`input[name="sequence-description-${i}"]`).value;
+                    
+                    let seqContent;
+                    try {
+                        seqContent = JSON.parse(contentStr);
+                    } catch (e) {
+                        showToast(`响应序列 ${i + 1} 的内容必须是有效的JSON格式`, 'error');
+                        return;
+                    }
+                    
+                    responseSequences.push({
+                        status_code: statusCode,
+                        content: seqContent,
+                        delay: seqDelay,
+                        sequence_description: description
+                    });
+                }
+                
+                if (responseSequences.length === 0) {
+                    showToast('启用响应序列时，至少需要添加一个响应', 'error');
+                    return;
+                }
+            }
+            
             const routeData = {
                 name: name,
                 match_rule: {
@@ -998,7 +1743,11 @@
                     status: status,
                     content: routeContent,
                     delay: delay
-                }
+                },
+                group: group,
+                tags: tags,
+                enable_sequence: enableSequence,
+                response_sequences: responseSequences
             };
             
             fetch('/admin/routes', {
@@ -1020,43 +1769,12 @@
             });
         }
         
-        function editRoute(routeId) {
-            // 获取路由详情
-            fetch(`/admin/routes/${routeId}`, {
-                headers: {
-                    'Authorization': 'Bearer mock_server_admin_token'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(route => {
-                // 填充表单
-                document.getElementById('edit-route-id').value = route.id || '';
-                document.getElementById('edit-route-name').value = route.name || '';
-                document.getElementById('edit-route-path').value = (route.match_rule && route.match_rule.path) || '';
-                document.getElementById('edit-route-methods').value = (route.match_rule && route.match_rule.methods) ? route.match_rule.methods.join(', ') : '';
-                document.getElementById('edit-route-status').value = (route.response && route.response.status) || 200;
-                document.getElementById('edit-route-content').value = JSON.stringify((route.response && route.response.content) || { message: "响应内容" }, null, 2);
-                document.getElementById('edit-route-delay').value = (route.response && route.response.delay) || 0;
-                document.getElementById('edit-route-enabled').value = route.enabled !== false;
-                
-                // 显示模态框
-                document.getElementById('edit-route-modal').style.display = 'block';
-            })
-            .catch(error => {
-                alert('获取路由详情失败：' + error.message);
-            });
-        }
-        
         function closeEditRouteModal() {
             document.getElementById('edit-route-modal').style.display = 'none';
             document.getElementById('edit-route-form').reset();
         }
         
+        // 更新编辑路由功能，支持分组和标签
         function submitEditRoute() {
             const routeId = document.getElementById('edit-route-id').value;
             const name = document.getElementById('edit-route-name').value;
@@ -1088,6 +1806,43 @@
             }
             const delay = parseFloat(document.getElementById('edit-route-delay').value);
             const enabled = document.getElementById('edit-route-enabled').value === 'true';
+            const group = document.getElementById('edit-route-group').value;
+            const tags = document.getElementById('edit-route-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+            
+            // 处理响应序列配置
+            const enableSequence = document.getElementById('edit-route-enable-sequence').checked;
+            const sequenceResponses = document.getElementById('edit-sequence-responses').children;
+            const responseSequences = [];
+            
+            if (enableSequence) {
+                for (let i = 0; i < sequenceResponses.length; i++) {
+                    const item = sequenceResponses[i];
+                    const statusCode = parseInt(item.querySelector(`input[name="edit-sequence-status-${i}"]`).value);
+                    const contentStr = item.querySelector(`textarea[name="edit-sequence-content-${i}"]`).value;
+                    const delay = parseFloat(item.querySelector(`input[name="edit-sequence-delay-${i}"]`).value);
+                    const description = item.querySelector(`input[name="edit-sequence-description-${i}"]`).value;
+                    
+                    let seqContent;
+                    try {
+                        seqContent = JSON.parse(contentStr);
+                    } catch (e) {
+                        showToast(`响应序列 ${i + 1} 的内容必须是有效的JSON格式`, 'error');
+                        return;
+                    }
+                    
+                    responseSequences.push({
+                        status_code: statusCode,
+                        content: seqContent,
+                        delay: delay,
+                        sequence_description: description
+                    });
+                }
+                
+                if (responseSequences.length === 0) {
+                    showToast('启用响应序列时，至少需要添加一个响应', 'error');
+                    return;
+                }
+            }
             
             const routeData = {
                 name: name,
@@ -1100,7 +1855,11 @@
                     content: content,
                     delay: delay
                 },
-                enabled: enabled
+                enabled: enabled,
+                group: group,
+                tags: tags,
+                enable_sequence: enableSequence,
+                response_sequences: responseSequences
             };
             
             fetch(`/admin/routes/${routeId}`, {
@@ -1152,7 +1911,14 @@
         function updateBatchDeleteButton() {
             const checkedBoxes = document.querySelectorAll('.route-checkbox:checked');
             const batchDeleteBtn = document.getElementById('batch-delete-btn');
-            batchDeleteBtn.disabled = checkedBoxes.length === 0;
+            // 不再禁用按钮，而是通过视觉方式提示用户
+            if (checkedBoxes.length === 0) {
+                batchDeleteBtn.style.opacity = '0.6';
+                batchDeleteBtn.style.cursor = 'not-allowed';
+            } else {
+                batchDeleteBtn.style.opacity = '1';
+                batchDeleteBtn.style.cursor = 'pointer';
+            }
         }
         
         function batchDeleteRoutes() {
@@ -1935,7 +2701,8 @@
             // 更新分页信息
             updatePaginationInfo(totalItems) {
                 this.totalItems = totalItems;
-                this.totalPages = Math.ceil(this.totalItems / this.pageSize);
+                // 当没有记录时，总页数显示为1
+                this.totalPages = Math.max(1, Math.ceil(this.totalItems / this.pageSize));
                 // 确保当前页码不超过总页数
                 if (this.currentPage > this.totalPages) {
                     this.currentPage = Math.max(1, this.totalPages);
@@ -2052,6 +2819,52 @@
         
         requestsPagination.onPageSizeChange = function() {
             updateRequestsList();
+        };
+        
+        // 初始化分组分页管理器
+        const groupsPagination = new PaginationManager(
+            'groups',
+            '/admin/groups',
+            'groups-table',
+            'groups-page-size',
+            'groups-page-info',
+            'groups-first-page',
+            'groups-prev-page',
+            'groups-next-page',
+            'groups-last-page',
+            false
+        );
+        
+        // 设置分组分页回调
+        groupsPagination.onPageChange = function() {
+            loadGroups();
+        };
+        
+        groupsPagination.onPageSizeChange = function() {
+            loadGroups();
+        };
+        
+        // 初始化标签分页管理器
+        const tagsPagination = new PaginationManager(
+            'tags',
+            '/admin/tags',
+            'tags-table',
+            'tags-page-size',
+            'tags-page-info',
+            'tags-first-page',
+            'tags-prev-page',
+            'tags-next-page',
+            'tags-last-page',
+            false
+        );
+        
+        // 设置标签分页回调
+        tagsPagination.onPageChange = function() {
+            loadTags();
+        };
+        
+        tagsPagination.onPageSizeChange = function() {
+            loadTags();
         };
         
         // 请求历史排序相关变量
@@ -2562,6 +3375,1085 @@
     <script>
         // 设置当前年份
         document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
+    
+    <script>
+        // 分组管理功能
+        
+        function openCreateGroupModal() {
+            document.getElementById('create-group-modal').style.display = 'block';
+        }
+        
+        function closeCreateGroupModal() {
+            document.getElementById('create-group-modal').style.display = 'none';
+            document.getElementById('create-group-form').reset();
+        }
+        
+        function submitCreateGroup() {
+            const groupName = document.getElementById('group-name').value;
+            
+            if (!groupName) {
+                showToast('分组名称不能为空', 'error');
+                return;
+            }
+            
+            // 使用FormData发送请求，因为后端期望的是表单字段参数
+            const formData = new FormData();
+            formData.append('group_name', groupName);
+            
+            fetch('/admin/groups', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 409) {
+                        throw new Error('分组名称已存在，请使用其他名称');
+                    }
+                    throw new Error('分组创建失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                showToast('分组创建成功！');
+                closeCreateGroupModal();
+                
+                // 手动将新创建的分组添加到分组列表中
+                // 这样即使分组还没有关联路由，也能在页面上显示
+                const tbody = document.querySelector('#groups-table tbody');
+                
+                // 检查是否有"暂无分组数据"的提示
+                const emptyRow = tbody.querySelector('tr');
+                if (emptyRow && emptyRow.querySelector('td[colspan="4"]')) {
+                    tbody.innerHTML = '';
+                }
+                
+                // 创建新的分组行
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td><input type="checkbox" class="group-checkbox" data-name="${groupName}" onchange="updateBatchDeleteGroupsButton()"></td>
+                    <td>${groupName}</td>
+                    <td>0</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editGroup('${groupName}')">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteGroup('${groupName}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(newRow);
+                
+                // 重新加载分组列表，确保数据完整
+                loadGroups();
+            })
+            .catch(error => {
+                showToast('分组创建失败：' + error.message, 'error');
+            });
+        }
+        
+        function editGroup(groupName) {
+            document.getElementById('edit-group-old-name').value = groupName;
+            document.getElementById('edit-group-name').value = groupName;
+            document.getElementById('edit-group-modal').style.display = 'block';
+        }
+        
+        function closeEditGroupModal() {
+            document.getElementById('edit-group-modal').style.display = 'none';
+            document.getElementById('edit-group-form').reset();
+        }
+        
+        function submitEditGroup() {
+            const oldName = document.getElementById('edit-group-old-name').value;
+            const newName = document.getElementById('edit-group-name').value;
+            
+            if (!newName) {
+                showToast('分组名称不能为空', 'error');
+                return;
+            }
+            
+            fetch(`/admin/groups/${encodeURIComponent(oldName)}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: JSON.stringify({ new_name: newName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('分组更新成功！');
+                closeEditGroupModal();
+                loadGroups();
+                updateRoutesList();
+            })
+            .catch(error => {
+                showToast('分组更新失败：' + error.message, 'error');
+            });
+        }
+        
+        function deleteGroup(groupName) {
+            if (confirm(`确定要删除分组 "${groupName}" 吗？`)) {
+                fetch(`/admin/groups/${encodeURIComponent(groupName)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer mock_server_admin_token'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast('分组删除成功！');
+                    loadGroups();
+                    updateRoutesList();
+                })
+                .catch(error => {
+                    showToast('分组删除失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        function searchGroupsPage() {
+            const query = document.getElementById('group-search').value;
+            if (!query) {
+                loadGroups();
+                return;
+            }
+            
+            const offset = (groupsPagination.currentPage - 1) * groupsPagination.pageSize;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('query', query);
+            queryParams.append('limit', groupsPagination.pageSize);
+            queryParams.append('offset', offset);
+            queryParams.append('exact', false); // 始终使用模糊匹配
+            
+            fetch(`/admin/groups/search?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#groups-table tbody');
+                tbody.innerHTML = '';
+                
+                const groups = data.items || [];
+                
+                if (groups.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                            <p>未找到匹配的分组</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    groupsPagination.updatePaginationInfo(0);
+                } else {
+                    groups.forEach(group => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="group-checkbox" data-name="${group.name}" onchange="updateBatchDeleteGroupsButton()"></td>
+                            <td>${group.name}</td>
+                            <td>${group.count}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editGroup('${group.name}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteGroup('${group.name}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    groupsPagination.updatePaginationInfo(data.total || groups.length);
+                }
+            })
+            .catch(error => {
+                showToast('搜索分组失败：' + error.message, 'error');
+            });
+        }
+        
+        function resetGroupSearch() {
+            document.getElementById('group-search').value = '';
+            loadGroups();
+        }
+        
+        // 标签管理功能
+        function openCreateTagModal() {
+            document.getElementById('create-tag-modal').style.display = 'block';
+        }
+        
+        function closeCreateTagModal() {
+            document.getElementById('create-tag-modal').style.display = 'none';
+            document.getElementById('create-tag-form').reset();
+        }
+        
+        function submitCreateTag() {
+            const tagName = document.getElementById('tag-name').value;
+            
+            if (!tagName) {
+                showToast('标签名称不能为空', 'error');
+                return;
+            }
+            
+            // 使用FormData发送请求，因为后端期望的是表单字段参数
+            const formData = new FormData();
+            formData.append('tag_name', tagName);
+            
+            fetch('/admin/tags', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 409) {
+                        throw new Error('标签名称已存在，请使用其他名称');
+                    }
+                    throw new Error('标签创建失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                showToast('标签创建成功！');
+                closeCreateTagModal();
+                loadTags();
+            })
+            .catch(error => {
+                showToast('标签创建失败：' + error.message, 'error');
+            });
+        }
+        
+        function editTag(tagName) {
+            document.getElementById('edit-tag-old-name').value = tagName;
+            document.getElementById('edit-tag-name').value = tagName;
+            document.getElementById('edit-tag-modal').style.display = 'block';
+        }
+        
+        function closeEditTagModal() {
+            document.getElementById('edit-tag-modal').style.display = 'none';
+            document.getElementById('edit-tag-form').reset();
+        }
+        
+        function submitEditTag() {
+            const oldName = document.getElementById('edit-tag-old-name').value;
+            const newName = document.getElementById('edit-tag-name').value;
+            
+            if (!newName) {
+                showToast('标签名称不能为空', 'error');
+                return;
+            }
+            
+            fetch(`/admin/tags/${encodeURIComponent(oldName)}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer mock_server_admin_token'
+                },
+                body: JSON.stringify({ new_name: newName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('标签更新成功！');
+                closeEditTagModal();
+                loadTags();
+                updateRoutesList();
+            })
+            .catch(error => {
+                showToast('标签更新失败：' + error.message, 'error');
+            });
+        }
+        
+        function deleteTag(tagName) {
+            if (confirm(`确定要删除标签 "${tagName}" 吗？`)) {
+                fetch(`/admin/tags/${encodeURIComponent(tagName)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer mock_server_admin_token'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast('标签删除成功！');
+                    loadTags();
+                    updateRoutesList();
+                })
+                .catch(error => {
+                    showToast('标签删除失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        function searchTags() {
+            const query = document.getElementById('tag-search').value;
+            if (!query) {
+                loadTags();
+                return;
+            }
+            
+            const offset = (tagsPagination.currentPage - 1) * tagsPagination.pageSize;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('query', query);
+            queryParams.append('limit', tagsPagination.pageSize);
+            queryParams.append('offset', offset);
+            queryParams.append('exact', false); // 始终使用模糊匹配
+            
+            fetch(`/admin/tags/search?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#tags-table tbody');
+                tbody.innerHTML = '';
+                
+                const tags = data.items || [];
+                
+                if (tags.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                            <p>未找到匹配的标签</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(0);
+                } else {
+                    tags.forEach(tag => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="tag-checkbox" data-name="${tag.name}" onchange="updateBatchDeleteTagsButton()"></td>
+                            <td>${tag.name}</td>
+                            <td>${tag.count}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editTag('${tag.name}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteTag('${tag.name}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(data.total || tags.length);
+                }
+            })
+            .catch(error => {
+                showToast('搜索标签失败：' + error.message, 'error');
+            });
+        }
+        
+        function searchTagsPage() {
+            const query = document.getElementById('tag-search').value;
+            if (!query) {
+                loadTags();
+                return;
+            }
+            
+            const offset = (tagsPagination.currentPage - 1) * tagsPagination.pageSize;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('query', query);
+            queryParams.append('limit', tagsPagination.pageSize);
+            queryParams.append('offset', offset);
+            queryParams.append('exact', false); // 始终使用模糊匹配
+            
+            fetch(`/admin/tags/search?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#tags-table tbody');
+                tbody.innerHTML = '';
+                
+                const tags = data.items || [];
+                
+                if (tags.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                            <p>未找到匹配的标签</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(0);
+                } else {
+                    tags.forEach(tag => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="tag-checkbox" data-name="${tag.name}" onchange="updateBatchDeleteTagsButton()"></td>
+                            <td>${tag.name}</td>
+                            <td>${tag.count}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editTag('${tag.name}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteTag('${tag.name}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(data.total || tags.length);
+                }
+            })
+            .catch(error => {
+                showToast('搜索标签失败：' + error.message, 'error');
+            });
+        }
+        
+        function resetTagSearch() {
+            document.getElementById('tag-search').value = '';
+            loadTags();
+        }
+        
+        // 更新编辑路由模态框填充，支持分组和标签
+        function editRoute(routeId) {
+            // 获取路由详情
+            fetch(`/admin/routes/${routeId}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(route => {
+                // 填充表单
+                document.getElementById('edit-route-id').value = route.id || '';
+                document.getElementById('edit-route-name').value = route.name || '';
+                document.getElementById('edit-route-path').value = (route.match_rule && route.match_rule.path) || '';
+                document.getElementById('edit-route-methods').value = (route.match_rule && route.match_rule.methods) ? route.match_rule.methods.join(', ') : '';
+                document.getElementById('edit-route-status').value = (route.response && route.response.status) || 200;
+                document.getElementById('edit-route-content').value = JSON.stringify((route.response && route.response.content) || { message: "响应内容" }, null, 2);
+                document.getElementById('edit-route-delay').value = (route.response && route.response.delay) || 0;
+                document.getElementById('edit-route-enabled').value = route.enabled !== false;
+                document.getElementById('edit-route-group').value = route.group || '';
+                document.getElementById('edit-route-tags').value = (route.tags && route.tags.length > 0) ? route.tags.join(', ') : '';
+                
+                // 处理响应序列配置
+                const enableSequence = document.getElementById('edit-route-enable-sequence');
+                const sequenceConfig = document.getElementById('edit-sequence-config');
+                const sequenceResponses = document.getElementById('edit-sequence-responses');
+                
+                // 清空现有序列响应
+                sequenceResponses.innerHTML = '';
+                
+                // 设置启用状态
+                enableSequence.checked = route.enable_sequence || false;
+                sequenceConfig.style.display = enableSequence.checked ? 'block' : 'none';
+                
+                // 加载现有响应序列
+                if (route.enable_sequence && route.response_sequences && route.response_sequences.length > 0) {
+                    route.response_sequences.forEach((seqResponse, index) => {
+                        const responseItem = document.createElement('div');
+                        responseItem.className = 'sequence-response-item';
+                        responseItem.style.marginBottom = '15px';
+                        responseItem.style.padding = '10px';
+                        responseItem.style.border = '1px solid #ccc';
+                        responseItem.style.borderRadius = '3px';
+                        
+                        responseItem.innerHTML = `
+                            <h4>响应 ${index + 1}</h4>
+                            <div class="form-group">
+                                <label>状态码</label>
+                                <input type="number" name="edit-sequence-status-${index}" value="${seqResponse.status_code || 200}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>响应内容</label>
+                                <textarea name="edit-sequence-content-${index}" placeholder='例如: {"status": "success", "message": "Response ${index + 1}"}' required>${JSON.stringify(seqResponse.content || { message: `Response ${index + 1}` }, null, 2)}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>响应延迟 (秒)</label>
+                                <input type="number" name="edit-sequence-delay-${index}" value="${seqResponse.delay || 0}" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label>响应描述</label>
+                                <input type="text" name="edit-sequence-description-${index}" placeholder="描述此响应的场景" value="${seqResponse.sequence_description || ''}">
+                            </div>
+                            <button type="button" class="btn btn-danger" onclick="removeEditSequenceResponse(this)">删除</button>
+                        `;
+                        
+                        sequenceResponses.appendChild(responseItem);
+                    });
+                }
+                
+                // 显示模态框
+                document.getElementById('edit-route-modal').style.display = 'block';
+            })
+            .catch(error => {
+                alert('获取路由详情失败：' + error.message);
+            });
+        }
+        
+        // 分组模糊搜索与动态过滤
+        function filterGroups(inputId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(inputId + '-dropdown');
+            const query = input.value;
+            
+            if (!query) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            fetch(`/admin/groups/search?query=${encodeURIComponent(query)}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(groups => {
+                if (groups.length > 0) {
+                    dropdown.innerHTML = '';
+                    groups.forEach(group => {
+                        const item = document.createElement('div');
+                        item.textContent = group;
+                        item.style.padding = '8px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.hover = 'background-color: #f5f5f5';
+                        item.addEventListener('mouseover', function() {
+                            this.style.backgroundColor = '#f5f5f5';
+                        });
+                        item.addEventListener('mouseout', function() {
+                            this.style.backgroundColor = 'white';
+                        });
+                        item.addEventListener('click', function() {
+                            input.value = group;
+                            dropdown.style.display = 'none';
+                        });
+                        dropdown.appendChild(item);
+                    });
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('过滤分组失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 标签模糊搜索与动态过滤
+        function filterTags(inputId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(inputId + '-dropdown');
+            const query = input.value;
+            
+            if (!query) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            // 提取最后一个标签作为搜索词
+            const lastTag = query.split(',').pop().trim();
+            if (!lastTag) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            fetch(`/admin/tags/search?query=${encodeURIComponent(lastTag)}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(tags => {
+                if (tags.length > 0) {
+                    dropdown.innerHTML = '';
+                    tags.forEach(tag => {
+                        const item = document.createElement('div');
+                        item.textContent = tag;
+                        item.style.padding = '8px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.hover = 'background-color: #f5f5f5';
+                        item.addEventListener('mouseover', function() {
+                            this.style.backgroundColor = '#f5f5f5';
+                        });
+                        item.addEventListener('mouseout', function() {
+                            this.style.backgroundColor = 'white';
+                        });
+                        item.addEventListener('click', function() {
+                            // 替换最后一个标签
+                            const parts = query.split(',');
+                            parts.pop();
+                            parts.push(tag);
+                            input.value = parts.join(',').trim();
+                            dropdown.style.display = 'none';
+                        });
+                        dropdown.appendChild(item);
+                    });
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('过滤标签失败：', error);
+                dropdown.style.display = 'none';
+            });
+        }
+        
+        // 点击其他区域关闭下拉框
+        document.addEventListener('click', function(e) {
+            const dropdowns = document.querySelectorAll('.dropdown');
+            dropdowns.forEach(dropdown => {
+                if (!dropdown.contains(e.target) && !e.target.matches('input[id$="-group"], input[id$="-tags"]')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+        
+        // 标签页切换事件
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabLinks = document.querySelectorAll('.tab-link');
+            tabLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // 移除所有活动状态
+                    tabLinks.forEach(l => l.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    
+                    // 添加当前活动状态
+                    this.classList.add('active');
+                    const tabId = this.getAttribute('href').substring(1) + '-tab';
+                    const tabContent = document.getElementById(tabId);
+                    tabContent.style.display = 'block';
+                    
+                    // 如果是分组管理标签页，加载分组数据
+                    if (tabId === 'groups-tab') {
+                        loadGroups();
+                    }
+                    
+                    // 如果是标签管理标签页，加载标签数据
+                    if (tabId === 'tags-tab') {
+                        loadTags();
+                    }
+                });
+            });
+        });
+        
+        // 分组分页控制函数
+        function changeGroupsPage(page) {
+            groupsPagination.changePage(page);
+        }
+        
+        function changeGroupsPageSize() {
+            groupsPagination.changePageSize();
+        }
+        
+        // 标签分页控制函数
+        function changeTagsPage(page) {
+            tagsPagination.changePage(page);
+        }
+        
+        function changeTagsPageSize() {
+            tagsPagination.changePageSize();
+        }
+        
+        // 分组选择和批量删除功能
+        function toggleSelectAllGroups(checkbox) {
+            const checkboxes = document.querySelectorAll('.group-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateBatchDeleteGroupsButton();
+        }
+        
+        function updateBatchDeleteGroupsButton() {
+            const checkedBoxes = document.querySelectorAll('.group-checkbox:checked');
+            const batchDeleteBtn = document.getElementById('batch-delete-groups-btn');
+            // 不再禁用按钮，而是通过视觉方式提示用户
+            if (checkedBoxes.length === 0) {
+                batchDeleteBtn.style.opacity = '0.6';
+                batchDeleteBtn.style.cursor = 'not-allowed';
+            } else {
+                batchDeleteBtn.style.opacity = '1';
+                batchDeleteBtn.style.cursor = 'pointer';
+            }
+        }
+        
+        function batchDeleteGroups() {
+            const checkedBoxes = document.querySelectorAll('.group-checkbox:checked');
+            const groupNames = Array.from(checkedBoxes).map(cb => cb.dataset.name);
+            
+            if (groupNames.length === 0) {
+                showToast('请选择要删除的分组', 'warning');
+                return;
+            }
+            
+            if (confirm(`确定要删除选中的 ${groupNames.length} 个分组吗？`)) {
+                // 批量删除分组
+                const deletePromises = groupNames.map(groupName => {
+                    return fetch(`/admin/groups/${encodeURIComponent(groupName)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer mock_server_admin_token'
+                        }
+                    }).then(response => {
+                        if (!response.ok) {
+                            throw new Error('删除失败');
+                        }
+                        return response.json();
+                    });
+                });
+                
+                Promise.all(deletePromises)
+                .then(results => {
+                    showToast(`成功删除 ${results.length} 个分组！`);
+                    loadGroups();
+                    updateRoutesList();
+                    // 取消全选复选框的勾选状态
+                    document.getElementById('select-all-groups').checked = false;
+                })
+                .catch(error => {
+                    showToast('批量删除失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        // 标签选择和批量删除功能
+        function toggleSelectAllTags(checkbox) {
+            const checkboxes = document.querySelectorAll('.tag-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateBatchDeleteTagsButton();
+        }
+        
+        function updateBatchDeleteTagsButton() {
+            const checkedBoxes = document.querySelectorAll('.tag-checkbox:checked');
+            const batchDeleteBtn = document.getElementById('batch-delete-tags-btn');
+            // 不再禁用按钮，而是通过视觉方式提示用户
+            if (checkedBoxes.length === 0) {
+                batchDeleteBtn.style.opacity = '0.6';
+                batchDeleteBtn.style.cursor = 'not-allowed';
+            } else {
+                batchDeleteBtn.style.opacity = '1';
+                batchDeleteBtn.style.cursor = 'pointer';
+            }
+        }
+        
+        function batchDeleteTags() {
+            const checkedBoxes = document.querySelectorAll('.tag-checkbox:checked');
+            const tagNames = Array.from(checkedBoxes).map(cb => cb.dataset.name);
+            
+            if (tagNames.length === 0) {
+                showToast('请选择要删除的标签', 'warning');
+                return;
+            }
+            
+            if (confirm(`确定要删除选中的 ${tagNames.length} 个标签吗？`)) {
+                // 批量删除标签
+                const deletePromises = tagNames.map(tagName => {
+                    return fetch(`/admin/tags/${encodeURIComponent(tagName)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer mock_server_admin_token'
+                        }
+                    }).then(response => {
+                        if (!response.ok) {
+                            throw new Error('删除失败');
+                        }
+                        return response.json();
+                    });
+                });
+                
+                Promise.all(deletePromises)
+                .then(results => {
+                    showToast(`成功删除 ${results.length} 个标签！`);
+                    loadTags();
+                    updateRoutesList();
+                    // 取消全选复选框的勾选状态
+                    document.getElementById('select-all-tags').checked = false;
+                })
+                .catch(error => {
+                    showToast('批量删除失败：' + error.message, 'error');
+                });
+            }
+        }
+        
+        // 更新loadGroups函数，支持分页和复选框
+        function loadGroups() {
+            const offset = (groupsPagination.currentPage - 1) * groupsPagination.pageSize;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('limit', groupsPagination.pageSize);
+            queryParams.append('offset', offset);
+            
+            fetch(`/admin/groups?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#groups-table tbody');
+                tbody.innerHTML = '';
+                
+                // 处理后端返回的分页数据结构
+                const groups = data.items || data || [];
+                
+                if (groups.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无分组数据</p>
+                            <p style="margin-top: 10px;">点击"新增分组"按钮添加第一个分组</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    groupsPagination.updatePaginationInfo(0);
+                } else {
+                    groups.forEach(group => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="group-checkbox" data-name="${group.name}" onchange="updateBatchDeleteGroupsButton()"></td>
+                            <td>${group.name}</td>
+                            <td>${group.count}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editGroup('${group.name}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteGroup('${group.name}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    groupsPagination.updatePaginationInfo(data.total || groups.length);
+                }
+            })
+            .catch(error => {
+                showToast('加载分组失败：' + error.message, 'error');
+            });
+        }
+        
+        // 更新loadTags函数，支持分页和复选框
+        function loadTags() {
+            const offset = (tagsPagination.currentPage - 1) * tagsPagination.pageSize;
+            
+            // 构建查询参数
+            let queryParams = new URLSearchParams();
+            queryParams.append('limit', tagsPagination.pageSize);
+            queryParams.append('offset', offset);
+            
+            fetch(`/admin/tags?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#tags-table tbody');
+                tbody.innerHTML = '';
+                
+                // 处理后端返回的分页数据结构
+                const tags = data.items || data || [];
+                
+                if (tags.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                            <p>暂无标签数据</p>
+                            <p style="margin-top: 10px;">点击"新增标签"按钮添加第一个标签</p>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(0);
+                } else {
+                    tags.forEach(tag => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="tag-checkbox" data-name="${tag.name}" onchange="updateBatchDeleteTagsButton()"></td>
+                            <td>${tag.name}</td>
+                            <td>${tag.count}</td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="editTag('${tag.name}')">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteTag('${tag.name}')">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 更新分页信息
+                    tagsPagination.updatePaginationInfo(data.total || tags.length);
+                }
+            })
+            .catch(error => {
+                showToast('加载标签失败：' + error.message, 'error');
+            });
+        }
+        
+        // 响应序列配置功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 响应序列切换事件
+            const routeEnableSequence = document.getElementById('route-enable-sequence');
+            if (routeEnableSequence) {
+                routeEnableSequence.addEventListener('change', function() {
+                    const sequenceConfig = document.getElementById('sequence-config');
+                    sequenceConfig.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+            
+            const editRouteEnableSequence = document.getElementById('edit-route-enable-sequence');
+            if (editRouteEnableSequence) {
+                editRouteEnableSequence.addEventListener('change', function() {
+                    const sequenceConfig = document.getElementById('edit-sequence-config');
+                    sequenceConfig.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        });
+        
+        // 添加响应序列项
+        function addSequenceResponse() {
+            const container = document.getElementById('sequence-responses');
+            const index = container.children.length;
+            
+            const responseItem = document.createElement('div');
+            responseItem.className = 'sequence-response-item';
+            responseItem.style.marginBottom = '15px';
+            responseItem.style.padding = '10px';
+            responseItem.style.border = '1px solid #ccc';
+            responseItem.style.borderRadius = '3px';
+            
+            responseItem.innerHTML = `
+                <h4>响应 ${index + 1}</h4>
+                <div class="form-group">
+                    <label>状态码</label>
+                    <input type="number" name="sequence-status-${index}" value="200" required>
+                </div>
+                <div class="form-group">
+                    <label>响应内容</label>
+                    <textarea name="sequence-content-${index}" placeholder='例如: {"status": "success", "message": "Response ${index + 1}"}' required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>响应延迟 (秒)</label>
+                    <input type="number" name="sequence-delay-${index}" value="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>响应描述</label>
+                    <input type="text" name="sequence-description-${index}" placeholder="描述此响应的场景">
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeSequenceResponse(this)">删除</button>
+            `;
+            
+            container.appendChild(responseItem);
+        }
+        
+        // 删除响应序列项
+        function removeSequenceResponse(button) {
+            const item = button.closest('.sequence-response-item');
+            item.remove();
+            
+            // 更新响应序号
+            const items = document.querySelectorAll('.sequence-response-item');
+            items.forEach((item, index) => {
+                const heading = item.querySelector('h4');
+                heading.textContent = `响应 ${index + 1}`;
+            });
+        }
+        
+        // 删除编辑路由时的响应序列项
+        function removeEditSequenceResponse(button) {
+            const item = button.closest('.sequence-response-item');
+            item.remove();
+            
+            // 更新响应序号
+            const items = document.querySelectorAll('#edit-sequence-responses .sequence-response-item');
+            items.forEach((item, index) => {
+                const heading = item.querySelector('h4');
+                heading.textContent = `响应 ${index + 1}`;
+            });
+        }
+        
+        // 添加编辑响应序列项
+        function addEditSequenceResponse() {
+            const container = document.getElementById('edit-sequence-responses');
+            const index = container.children.length;
+            
+            const responseItem = document.createElement('div');
+            responseItem.className = 'sequence-response-item';
+            responseItem.style.marginBottom = '15px';
+            responseItem.style.padding = '10px';
+            responseItem.style.border = '1px solid #ccc';
+            responseItem.style.borderRadius = '3px';
+            
+            responseItem.innerHTML = `
+                <h4>响应 ${index + 1}</h4>
+                <div class="form-group">
+                    <label>状态码</label>
+                    <input type="number" name="edit-sequence-status-${index}" value="200" required>
+                </div>
+                <div class="form-group">
+                    <label>响应内容</label>
+                    <textarea name="edit-sequence-content-${index}" placeholder='例如: {"status": "success", "message": "Response ${index + 1}"}' required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>响应延迟 (秒)</label>
+                    <input type="number" name="edit-sequence-delay-${index}" value="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>响应描述</label>
+                    <input type="text" name="edit-sequence-description-${index}" placeholder="描述此响应的场景">
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeEditSequenceResponse(this)">删除</button>
+            `;
+            
+            container.appendChild(responseItem);
+        }
+        
+        // 删除编辑响应序列项
+        function removeEditSequenceResponse(button) {
+            const item = button.closest('.sequence-response-item');
+            item.remove();
+            
+            // 更新响应序号
+            const items = document.querySelectorAll('.sequence-response-item');
+            items.forEach((item, index) => {
+                const heading = item.querySelector('h4');
+                heading.textContent = `响应 ${index + 1}`;
+            });
+        }
+        
+        // 重置响应序列计数器
+        function resetSequenceCounter(routeId) {
+            fetch(`/admin/routes/${routeId}/reset-sequence`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer mock_server_admin_token',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('响应序列计数器已重置');
+            })
+            .catch(error => {
+                showToast('重置响应序列计数器失败：' + error.message, 'error');
+            });
+        }
     </script>
 </body>
 </html>

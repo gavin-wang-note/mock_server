@@ -32,6 +32,9 @@ class RouteResponse(BaseModel):
     # 认证测试字段
     auth_scenario: Optional[str] = Field(default=None, description="认证场景：valid, expired, invalid")
     auth_token: Optional[str] = Field(default=None, description="认证令牌")
+    # 响应序列字段
+    sequence_id: Optional[str] = Field(default=None, description="响应序列ID")
+    sequence_description: Optional[str] = Field(default=None, description="响应序列描述")
 
 
 class RouteValidator(BaseModel):
@@ -53,8 +56,14 @@ class Route(BaseModel):
     name: str = Field(..., description="路由名称")
     enabled: bool = Field(default=True, description="是否启用")
     match_rule: RouteMatchRule = Field(..., description="匹配规则")
-    response: RouteResponse = Field(..., description="响应配置")
+    response: RouteResponse = Field(..., description="默认响应配置")
+    # 响应序列支持
+    response_sequences: Optional[List[RouteResponse]] = Field(default=None, description="响应序列配置")
+    enable_sequence: bool = Field(default=False, description="是否启用响应序列")
+    current_sequence_index: int = Field(default=0, description="当前响应序列索引")
+    # 其他字段
     validator: Optional[RouteValidator] = Field(default=None, description="验证规则")
+    group: Optional[str] = Field(default=None, description="路由分组")
     tags: Optional[List[str]] = Field(default=None, description="路由标签")
     created_at: float = Field(..., description="创建时间戳")
     updated_at: float = Field(..., description="更新时间戳")
@@ -64,8 +73,13 @@ class RouteCreate(BaseModel):
     """创建路由请求"""
     name: str = Field(..., description="路由名称")
     match_rule: RouteMatchRule = Field(..., description="匹配规则")
-    response: RouteResponse = Field(..., description="响应配置")
+    response: RouteResponse = Field(..., description="默认响应配置")
+    # 响应序列支持
+    response_sequences: Optional[List[RouteResponse]] = Field(default=None, description="响应序列配置")
+    enable_sequence: bool = Field(default=False, description="是否启用响应序列")
+    # 其他字段
     validator: Optional[RouteValidator] = Field(default=None, description="验证规则")
+    group: Optional[str] = Field(default=None, description="路由分组")
     tags: Optional[List[str]] = Field(default=None, description="路由标签")
 
 
@@ -74,6 +88,12 @@ class RouteUpdate(BaseModel):
     name: Optional[str] = Field(default=None, description="路由名称")
     enabled: Optional[bool] = Field(default=None, description="是否启用")
     match_rule: Optional[RouteMatchRule] = Field(default=None, description="匹配规则")
-    response: Optional[RouteResponse] = Field(default=None, description="响应配置")
+    response: Optional[RouteResponse] = Field(default=None, description="默认响应配置")
+    # 响应序列支持
+    response_sequences: Optional[List[RouteResponse]] = Field(default=None, description="响应序列配置")
+    enable_sequence: Optional[bool] = Field(default=None, description="是否启用响应序列")
+    current_sequence_index: Optional[int] = Field(default=None, description="当前响应序列索引")
+    # 其他字段
     validator: Optional[RouteValidator] = Field(default=None, description="验证规则")
+    group: Optional[str] = Field(default=None, description="路由分组")
     tags: Optional[List[str]] = Field(default=None, description="路由标签")

@@ -96,11 +96,32 @@ class DatabaseStorage:
                     match_rule TEXT,
                     response TEXT,
                     validator TEXT,
+                    route_group TEXT,
                     tags TEXT,
+                    enable_sequence INTEGER,
+                    response_sequences TEXT,
+                    current_sequence_index INTEGER,
                     created_at REAL,
                     updated_at REAL
                 )
             ''')
+            
+            # 为现有数据库添加缺少的字段
+            try:
+                # 检查并添加route_group字段
+                cursor.execute("PRAGMA table_info(routes)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if 'route_group' not in columns:
+                    cursor.execute("ALTER TABLE routes ADD COLUMN route_group TEXT")
+                # 检查并添加响应序列相关字段
+                if 'enable_sequence' not in columns:
+                    cursor.execute("ALTER TABLE routes ADD COLUMN enable_sequence INTEGER DEFAULT 0")
+                if 'response_sequences' not in columns:
+                    cursor.execute("ALTER TABLE routes ADD COLUMN response_sequences TEXT")
+                if 'current_sequence_index' not in columns:
+                    cursor.execute("ALTER TABLE routes ADD COLUMN current_sequence_index INTEGER DEFAULT 0")
+            except Exception as e:
+                print(f"添加字段失败: {e}")
             
             # 创建配置表
             cursor.execute('''
@@ -492,24 +513,78 @@ class DatabaseStorage:
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO routes 
-                (id, name, enabled, match_rule, response, validator, tags, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    route.id,
-                    route.name,
-                    1 if route.enabled else 0,
-                    json.dumps(route.match_rule.model_dump() if hasattr(route.match_rule, 'model_dump') else route.match_rule),
-                    json.dumps(route.response.model_dump() if hasattr(route.response, 'model_dump') else route.response),
-                    json.dumps(route.validator.model_dump() if route.validator and hasattr(route.validator, 'model_dump') else route.validator),
-                    json.dumps(route.tags),
-                    route.created_at,
-                    route.updated_at
+            # 检查数据库表结构，确定是否包含route_group字段
+            cursor.execute("PRAGMA table_info(routes)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            # 检查是否包含响应序列相关字段
+            has_sequence_fields = all(field in columns for field in ['enable_sequence', 'response_sequences', 'current_sequence_index'])
+            
+            if 'route_group' in columns and has_sequence_fields:
+                # 如果表中包含route_group和响应序列字段，使用包含这些字段的SQL语句
+                cursor.execute(
+                    '''
+                    INSERT OR REPLACE INTO routes 
+                    (id, name, enabled, match_rule, response, validator, route_group, tags, enable_sequence, response_sequences, current_sequence_index, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        route.id,
+                        route.name,
+                        1 if route.enabled else 0,
+                        json.dumps(route.match_rule.model_dump() if hasattr(route.match_rule, 'model_dump') else route.match_rule),
+                        json.dumps(route.response.model_dump() if hasattr(route.response, 'model_dump') else route.response),
+                        json.dumps(route.validator.model_dump() if route.validator and hasattr(route.validator, 'model_dump') else route.validator),
+                        route.group,
+                        json.dumps(route.tags),
+                        1 if getattr(route, 'enable_sequence', False) else 0,
+                        json.dumps([seq.model_dump() if hasattr(seq, 'model_dump') else seq for seq in (getattr(route, 'response_sequences', []) or [])]),
+                        getattr(route, 'current_sequence_index', 0),
+                        route.created_at,
+                        route.updated_at
+                    )
                 )
-            )
+            elif 'route_group' in columns:
+                # 如果表中包含route_group但不包含响应序列字段，使用包含route_group的SQL语句
+                cursor.execute(
+                    '''
+                    INSERT OR REPLACE INTO routes 
+                    (id, name, enabled, match_rule, response, validator, route_group, tags, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        route.id,
+                        route.name,
+                        1 if route.enabled else 0,
+                        json.dumps(route.match_rule.model_dump() if hasattr(route.match_rule, 'model_dump') else route.match_rule),
+                        json.dumps(route.response.model_dump() if hasattr(route.response, 'model_dump') else route.response),
+                        json.dumps(route.validator.model_dump() if route.validator and hasattr(route.validator, 'model_dump') else route.validator),
+                        route.group,
+                        json.dumps(route.tags),
+                        route.created_at,
+                        route.updated_at
+                    )
+                )
+            else:
+                # 如果表中不包含route_group字段，使用不包含该字段的SQL语句
+                cursor.execute(
+                    '''
+                    INSERT OR REPLACE INTO routes 
+                    (id, name, enabled, match_rule, response, validator, tags, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        route.id,
+                        route.name,
+                        1 if route.enabled else 0,
+                        json.dumps(route.match_rule.model_dump() if hasattr(route.match_rule, 'model_dump') else route.match_rule),
+                        json.dumps(route.response.model_dump() if hasattr(route.response, 'model_dump') else route.response),
+                        json.dumps(route.validator.model_dump() if route.validator and hasattr(route.validator, 'model_dump') else route.validator),
+                        json.dumps(route.tags),
+                        route.created_at,
+                        route.updated_at
+                    )
+                )
             conn.commit()
         finally:
             self._close_connection(conn)
@@ -536,12 +611,38 @@ class DatabaseStorage:
                 match_rule_data = json.loads(row['match_rule'])
                 response_data = json.loads(row['response'])
                 validator_data = json.loads(row['validator']) if row['validator'] else None
+                # 处理route_group字段可能不存在的情况
+                try:
+                    route_group = row['route_group']
+                except IndexError:
+                    route_group = None
                 tags = json.loads(row['tags']) if row['tags'] else []
+                
+                # 处理响应序列相关字段可能不存在的情况
+                try:
+                    enable_sequence = bool(row['enable_sequence'])
+                except (IndexError, KeyError):
+                    enable_sequence = False
+                
+                try:
+                    response_sequences_data = json.loads(row['response_sequences']) if row['response_sequences'] else []
+                except (IndexError, KeyError):
+                    response_sequences_data = []
+                
+                try:
+                    current_sequence_index = row['current_sequence_index']
+                except (IndexError, KeyError):
+                    current_sequence_index = 0
                 
                 # 重建嵌套对象
                 match_rule = RouteMatchRule(**match_rule_data)
                 response = RouteResponse(**response_data)
                 validator = RouteValidator(**validator_data) if validator_data else None
+                
+                # 重建响应序列对象
+                response_sequences = []
+                for seq_data in response_sequences_data:
+                    response_sequences.append(RouteResponse(**seq_data))
                 
                 route = Route(
                     id=row['id'],
@@ -549,7 +650,11 @@ class DatabaseStorage:
                     enabled=bool(row['enabled']),
                     match_rule=match_rule,
                     response=response,
+                    response_sequences=response_sequences,
+                    enable_sequence=enable_sequence,
+                    current_sequence_index=current_sequence_index,
                     validator=validator,
+                    group=route_group,
                     tags=tags,
                     created_at=row['created_at'],
                     updated_at=row['updated_at']

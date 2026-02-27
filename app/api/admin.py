@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, Body, Form
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from typing import List, Optional
@@ -45,6 +45,43 @@ def timestamp_filter(value):
 # 注册过滤器
 templates.env.filters['timestamp'] = timestamp_filter
 
+
+# 全局分组集合，用于存储所有创建的分组
+created_groups = set()
+
+# 全局标签集合，用于存储所有创建的标签
+created_tags = set()
+
+# 从数据库加载分组和标签
+def load_groups_and_tags():
+    """从数据库加载分组和标签"""
+    from app.storage.database import db_storage
+    global created_groups, created_tags
+    
+    # 加载分组
+    groups_data = db_storage.get_config('created_groups')
+    if groups_data:
+        created_groups = set(groups_data)
+    
+    # 加载标签
+    tags_data = db_storage.get_config('created_tags')
+    if tags_data:
+        created_tags = set(tags_data)
+
+# 保存分组和标签到数据库
+def save_groups_and_tags():
+    """保存分组和标签到数据库"""
+    from app.storage.database import db_storage
+    global created_groups, created_tags
+    
+    # 保存分组
+    db_storage.save_config('created_groups', list(created_groups))
+    
+    # 保存标签
+    db_storage.save_config('created_tags', list(created_tags))
+
+# 初始化时加载分组和标签
+load_groups_and_tags()
 
 # 认证依赖
 async def get_current_user(request: Request):
@@ -128,10 +165,11 @@ async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: in
         search_lower = search.lower()
         filtered_routes = []
         for route in routes:
-            # 检查路由名称、路径和方法是否包含搜索词
+            # 检查路由名称、路径、方法和分组是否包含搜索词
             name_match = search_lower in route.name.lower() if route.name else False
             path_match = False
             methods_match = False
+            group_match = search_lower in route.group.lower() if route.group else False
             
             if route.match_rule:
                 path_match = search_lower in route.match_rule.path.lower() if route.match_rule.path else False
@@ -139,7 +177,7 @@ async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: in
                     methods_str = ", ".join(route.match_rule.methods).lower()
                     methods_match = search_lower in methods_str
             
-            if name_match or path_match or methods_match:
+            if name_match or path_match or methods_match or group_match:
                 filtered_routes.append(route)
         routes = filtered_routes
     
@@ -153,6 +191,8 @@ async def get_routes(search: Optional[str] = None, limit: int = 1000, offset: in
             routes.sort(key=lambda x: x.name or "", reverse=reverse)
         elif sort == "path":
             routes.sort(key=lambda x: x.match_rule.path if x.match_rule else "", reverse=reverse)
+        elif sort == "group":
+            routes.sort(key=lambda x: x.group or "", reverse=reverse)
         elif sort == "created_at":
             routes.sort(key=lambda x: x.created_at or 0, reverse=reverse)
     
@@ -175,6 +215,41 @@ async def create_route(route_create: RouteCreate, current_user: dict = Depends(g
     # 生成路由ID
     route_id = str(uuid.uuid4())
     
+    # 自动创建不存在的分组
+    if route_create.group:
+        # 检查分组是否已存在
+        routes = get_all_routes()
+        existing_groups = set()
+        for route in routes:
+            if route.group:
+                existing_groups.add(route.group)
+        
+        # 如果分组不存在，添加到全局集合
+        if route_create.group not in existing_groups and route_create.group not in created_groups:
+            created_groups.add(route_create.group)
+            # 保存到数据库
+            save_groups_and_tags()
+    
+    # 自动创建不存在的标签
+    if route_create.tags:
+        # 检查标签是否已存在
+        routes = get_all_routes()
+        existing_tags = set()
+        for route in routes:
+            if route.tags:
+                existing_tags.update(route.tags)
+        
+        # 如果标签不存在，添加到全局集合
+        tags_added = False
+        for tag in route_create.tags:
+            if tag not in existing_tags and tag not in created_tags:
+                created_tags.add(tag)
+                tags_added = True
+        
+        # 如果添加了新标签，保存到数据库
+        if tags_added:
+            save_groups_and_tags()
+    
     # 创建路由
     route = Route(
         id=route_id,
@@ -182,7 +257,11 @@ async def create_route(route_create: RouteCreate, current_user: dict = Depends(g
         enabled=True,
         match_rule=route_create.match_rule,
         response=route_create.response,
+        response_sequences=route_create.response_sequences,
+        enable_sequence=route_create.enable_sequence,
+        current_sequence_index=0,
         validator=route_create.validator,
+        group=route_create.group,
         tags=route_create.tags,
         created_at=time.time(),
         updated_at=time.time()
@@ -219,6 +298,43 @@ async def update_route_endpoint(route_id: str, route_update: RouteUpdate, curren
     if not existing_route:
         raise HTTPException(status_code=404, detail="路由不存在")
     
+    # 确定最终的分组和标签值
+    final_group = route_update.group if route_update.group is not None else existing_route.group
+    final_tags = route_update.tags if route_update.tags is not None else existing_route.tags
+    
+    # 自动创建不存在的分组
+    if final_group:
+        # 检查分组是否已存在
+        existing_groups = set()
+        for route in routes:
+            if route.group:
+                existing_groups.add(route.group)
+        
+        # 如果分组不存在，添加到全局集合
+        if final_group not in existing_groups and final_group not in created_groups:
+            created_groups.add(final_group)
+            # 保存到数据库
+            save_groups_and_tags()
+    
+    # 自动创建不存在的标签
+    if final_tags:
+        # 检查标签是否已存在
+        existing_tags = set()
+        for route in routes:
+            if route.tags:
+                existing_tags.update(route.tags)
+        
+        # 如果标签不存在，添加到全局集合
+        tags_added = False
+        for tag in final_tags:
+            if tag not in existing_tags and tag not in created_tags:
+                created_tags.add(tag)
+                tags_added = True
+        
+        # 如果添加了新标签，保存到数据库
+        if tags_added:
+            save_groups_and_tags()
+    
     # 更新路由
     updated_route = Route(
         id=route_id,
@@ -226,8 +342,12 @@ async def update_route_endpoint(route_id: str, route_update: RouteUpdate, curren
         enabled=route_update.enabled if route_update.enabled is not None else existing_route.enabled,
         match_rule=route_update.match_rule or existing_route.match_rule,
         response=route_update.response or existing_route.response,
+        response_sequences=route_update.response_sequences if route_update.response_sequences is not None else existing_route.response_sequences,
+        enable_sequence=route_update.enable_sequence if route_update.enable_sequence is not None else existing_route.enable_sequence,
+        current_sequence_index=existing_route.current_sequence_index,
         validator=route_update.validator or existing_route.validator,
-        tags=route_update.tags or existing_route.tags,
+        group=final_group,
+        tags=final_tags,
         created_at=existing_route.created_at,
         updated_at=time.time()
     )
@@ -252,6 +372,29 @@ async def delete_route(route_id: str, current_user: dict = Depends(get_current_u
     remove_route(route_id)
     
     return {"message": "路由删除成功"}
+
+
+@router.post("/admin/routes/{route_id}/reset-sequence")
+async def reset_sequence_counter(route_id: str, current_user: dict = Depends(get_current_user)):
+    """重置响应序列计数器"""
+    # 检查路由是否存在
+    routes = get_all_routes()
+    route_to_update = None
+    for route in routes:
+        if route.id == route_id:
+            route_to_update = route
+            break
+    
+    if not route_to_update:
+        raise HTTPException(status_code=404, detail="路由不存在")
+    
+    # 重置序列计数器
+    route_to_update.current_sequence_index = 0
+    
+    # 更新路由
+    update_route(route_to_update)
+    
+    return {"message": "响应序列计数器已重置"}
 
 
 # 请求历史管理
@@ -648,6 +791,7 @@ async def export_routes():
             "match_rule": match_rule_data,
             "response": response_data,
             "enabled": route.enabled,
+            "group": route.group,
             "tags": route.tags if route.tags else []
         }
         
@@ -675,3 +819,356 @@ async def export_routes():
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+
+
+# 分组管理
+@router.get("/admin/groups")
+async def get_groups(limit: int = 10, offset: int = 0, current_user: dict = Depends(get_current_user)):
+    """获取所有分组"""
+    routes = get_all_routes()
+    
+    # 统计分组使用次数
+    group_stats = {}
+    for route in routes:
+        if route.group:
+            if route.group in group_stats:
+                group_stats[route.group] += 1
+            else:
+                group_stats[route.group] = 1
+    
+    # 添加所有已创建但还没有关联路由的分组
+    for group_name in created_groups:
+        if group_name not in group_stats:
+            group_stats[group_name] = 0
+    
+    # 转换为列表格式
+    groups = []
+    for group_name, count in group_stats.items():
+        groups.append({
+            "name": group_name,
+            "count": count
+        })
+    
+    # 按使用次数排序
+    groups.sort(key=lambda x: x['count'], reverse=True)
+    
+    # 应用分页
+    total = len(groups)
+    groups = groups[offset:offset + limit]
+    
+    # 返回带有分页信息的数据结构
+    return {
+        "items": groups,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+@router.post("/admin/groups")
+async def create_group(group_name: str = Form(..., description="分组名称"), current_user: dict = Depends(get_current_user)):
+    """创建分组"""
+    # 检查分组是否已存在
+    routes = get_all_routes()
+    existing_groups = set()
+    for route in routes:
+        if route.group:
+            existing_groups.add(route.group)
+    
+    # 检查是否在已创建的分组中
+    if group_name in existing_groups or group_name in created_groups:
+        # 返回409 Conflict状态码，表示资源已存在
+        raise HTTPException(status_code=409, detail="分组名称已存在")
+    
+    # 将新分组添加到全局集合中
+    created_groups.add(group_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    # 这里不需要特殊处理，因为分组是动态创建的
+    # 当路由关联分组时，如果分组不存在，会自动创建
+    return {"message": "分组创建成功", "group": group_name}
+
+
+@router.put("/admin/groups/{old_name}")
+async def update_group(old_name: str, request_data: dict = Body(..., description="更新数据"), current_user: dict = Depends(get_current_user)):
+    """更新分组名称"""
+    new_name = request_data.get("new_name")
+    if not new_name:
+        raise HTTPException(status_code=400, detail="新分组名称不能为空")
+    
+    routes = get_all_routes()
+    
+    # 更新所有使用该分组的路由
+    updated_count = 0
+    for route in routes:
+        if route.group == old_name:
+            route.group = new_name
+            update_route(route)
+            updated_count += 1
+    
+    # 更新已创建分组集合中的分组名称
+    if old_name in created_groups:
+        created_groups.remove(old_name)
+        created_groups.add(new_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    return {"message": "分组更新成功", "old_name": old_name, "new_name": new_name, "updated_count": updated_count}
+
+
+@router.delete("/admin/groups/{group_name}")
+async def delete_group(group_name: str, current_user: dict = Depends(get_current_user)):
+    """删除分组"""
+    routes = get_all_routes()
+    
+    # 移除所有使用该分组的路由的分组信息
+    updated_count = 0
+    for route in routes:
+        if route.group == group_name:
+            route.group = None
+            update_route(route)
+            updated_count += 1
+    
+    # 从已创建分组集合中移除该分组
+    if group_name in created_groups:
+        created_groups.remove(group_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    return {"message": "分组删除成功", "group": group_name, "updated_count": updated_count}
+
+
+# 标签管理
+@router.get("/admin/tags")
+async def get_tags(limit: int = 10, offset: int = 0, current_user: dict = Depends(get_current_user)):
+    """获取所有标签"""
+    routes = get_all_routes()
+    
+    # 统计标签使用次数
+    tag_stats = {}
+    for route in routes:
+        if route.tags:
+            for tag in route.tags:
+                if tag in tag_stats:
+                    tag_stats[tag] += 1
+                else:
+                    tag_stats[tag] = 1
+    
+    # 添加所有已创建但还没有关联路由的标签
+    for tag_name in created_tags:
+        if tag_name not in tag_stats:
+            tag_stats[tag_name] = 0
+    
+    # 转换为列表格式
+    tags = []
+    for tag_name, count in tag_stats.items():
+        tags.append({
+            "name": tag_name,
+            "count": count
+        })
+    
+    # 按使用次数排序
+    tags.sort(key=lambda x: x['count'], reverse=True)
+    
+    # 应用分页
+    total = len(tags)
+    tags = tags[offset:offset + limit]
+    
+    # 返回带有分页信息的数据结构
+    return {
+        "items": tags,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+@router.post("/admin/tags")
+async def create_tag(tag_name: str = Form(..., description="标签名称"), current_user: dict = Depends(get_current_user)):
+    """创建标签"""
+    # 检查标签是否已存在
+    routes = get_all_routes()
+    existing_tags = set()
+    for route in routes:
+        if route.tags:
+            existing_tags.update(route.tags)
+    
+    # 检查是否在已创建的标签中
+    if tag_name in existing_tags or tag_name in created_tags:
+        # 返回409 Conflict状态码，表示资源已存在
+        raise HTTPException(status_code=409, detail="标签名称已存在")
+    
+    # 将新标签添加到全局集合中
+    created_tags.add(tag_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    # 这里不需要特殊处理，因为标签是动态创建的
+    # 当路由关联标签时，如果标签不存在，会自动创建
+    return {"message": "标签创建成功", "tag": tag_name}
+
+
+@router.put("/admin/tags/{old_name}")
+async def update_tag(old_name: str, request_data: dict = Body(..., description="更新数据"), current_user: dict = Depends(get_current_user)):
+    """更新标签名称"""
+    new_name = request_data.get("new_name")
+    if not new_name:
+        raise HTTPException(status_code=400, detail="新标签名称不能为空")
+    
+    routes = get_all_routes()
+    
+    # 更新所有使用该标签的路由
+    updated_count = 0
+    for route in routes:
+        if route.tags and old_name in route.tags:
+            # 替换标签名称
+            route.tags = [new_name if tag == old_name else tag for tag in route.tags]
+            update_route(route)
+            updated_count += 1
+    
+    # 更新已创建标签集合中的标签名称
+    if old_name in created_tags:
+        created_tags.remove(old_name)
+        created_tags.add(new_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    return {"message": "标签更新成功", "old_name": old_name, "new_name": new_name, "updated_count": updated_count}
+
+
+@router.delete("/admin/tags/{tag_name}")
+async def delete_tag(tag_name: str, current_user: dict = Depends(get_current_user)):
+    """删除标签"""
+    routes = get_all_routes()
+    
+    # 移除所有使用该标签的路由的标签信息
+    updated_count = 0
+    for route in routes:
+        if route.tags and tag_name in route.tags:
+            # 移除标签
+            route.tags = [tag for tag in route.tags if tag != tag_name]
+            update_route(route)
+            updated_count += 1
+    
+    # 从已创建标签集合中移除该标签
+    if tag_name in created_tags:
+        created_tags.remove(tag_name)
+    
+    # 保存到数据库
+    save_groups_and_tags()
+    
+    return {"message": "标签删除成功", "tag": tag_name, "updated_count": updated_count}
+
+
+# 搜索API（支持精准查询和模糊查询）
+@router.get("/admin/groups/search")
+async def search_groups(query: str, limit: int = 10, offset: int = 0, exact: bool = False, current_user: dict = Depends(get_current_user)):
+    """搜索分组（支持精准查询和模糊查询）"""
+    routes = get_all_routes()
+    
+    # 统计分组使用次数
+    group_stats = {}
+    for route in routes:
+        if route.group:
+            if route.group in group_stats:
+                group_stats[route.group] += 1
+            else:
+                group_stats[route.group] = 1
+    
+    # 添加所有已创建但还没有关联路由的分组
+    for group_name in created_groups:
+        if group_name not in group_stats:
+            group_stats[group_name] = 0
+    
+    # 过滤匹配的分组
+    matched_groups = []
+    if query:
+        query_lower = query.lower()
+        for group_name, count in group_stats.items():
+            if exact:
+                # 精准查询：完全匹配分组名称
+                if group_name == query:
+                    matched_groups.append({"name": group_name, "count": count})
+            else:
+                # 模糊查询：部分匹配分组名称
+                if query_lower in group_name.lower():
+                    matched_groups.append({"name": group_name, "count": count})
+    else:
+        # 没有查询参数时，返回所有分组
+        for group_name, count in group_stats.items():
+            matched_groups.append({"name": group_name, "count": count})
+    
+    # 按使用次数排序
+    matched_groups.sort(key=lambda x: x['count'], reverse=True)
+    
+    # 应用分页
+    total = len(matched_groups)
+    matched_groups = matched_groups[offset:offset + limit]
+    
+    # 返回带有分页信息的数据结构
+    return {
+        "items": matched_groups,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+@router.get("/admin/tags/search")
+async def search_tags(query: str, limit: int = 10, offset: int = 0, exact: bool = False, current_user: dict = Depends(get_current_user)):
+    """搜索标签（支持精准查询和模糊查询）"""
+    routes = get_all_routes()
+    
+    # 统计标签使用次数
+    tag_stats = {}
+    for route in routes:
+        if route.tags:
+            for tag in route.tags:
+                if tag in tag_stats:
+                    tag_stats[tag] += 1
+                else:
+                    tag_stats[tag] = 1
+    
+    # 添加所有已创建但还没有关联路由的标签
+    for tag_name in created_tags:
+        if tag_name not in tag_stats:
+            tag_stats[tag_name] = 0
+    
+    # 过滤匹配的标签
+    matched_tags = []
+    if query:
+        query_lower = query.lower()
+        for tag_name, count in tag_stats.items():
+            if exact:
+                # 精准查询：完全匹配标签名称
+                if tag_name == query:
+                    matched_tags.append({"name": tag_name, "count": count})
+            else:
+                # 模糊查询：部分匹配标签名称
+                if query_lower in tag_name.lower():
+                    matched_tags.append({"name": tag_name, "count": count})
+    else:
+        # 没有查询参数时，返回所有标签
+        for tag_name, count in tag_stats.items():
+            matched_tags.append({"name": tag_name, "count": count})
+    
+    # 按使用次数排序
+    matched_tags.sort(key=lambda x: x['count'], reverse=True)
+    
+    # 应用分页
+    total = len(matched_tags)
+    matched_tags = matched_tags[offset:offset + limit]
+    
+    # 返回带有分页信息的数据结构
+    return {
+        "items": matched_tags,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }

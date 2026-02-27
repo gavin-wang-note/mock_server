@@ -121,8 +121,24 @@ async def mock_handler(request: Request, path: str):
                 logger.info(f"Request completed [{request_id}]: 400 Bad Request")
                 return response
         
+        # 处理响应序列
+        response_to_use = route.response
+        if route.enable_sequence and route.response_sequences and len(route.response_sequences) > 0:
+            # 获取当前序列索引
+            current_index = route.current_sequence_index
+            # 确保索引在有效范围内
+            if current_index < len(route.response_sequences):
+                response_to_use = route.response_sequences[current_index]
+                # 更新序列索引（循环）
+                route.current_sequence_index = (current_index + 1) % len(route.response_sequences)
+                # 保存更新后的路由
+                db_storage.save_route(route)
+                # 更新内存中的路由
+                mock_router.update_route(route)
+                logger.info(f"Response sequence used [{request_id}]: index {current_index} for route {route.name}")
+        
         # 生成响应
-        response = await generate_response(route.response, context)
+        response = await generate_response(response_to_use, context)
         
         # 记录请求和响应
         await record_request_and_response(
